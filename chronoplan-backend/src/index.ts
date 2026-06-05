@@ -1,6 +1,7 @@
 import express from "express";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
+import eventRoutes from "./routes/event.routes";
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.get("/", (req, res) => {
 
 app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
+app.use("/events", eventRoutes);
 
 app.listen(5000, () => {
   console.log("Server działa na porcie 5000");
