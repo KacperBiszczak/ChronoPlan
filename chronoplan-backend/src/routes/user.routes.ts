@@ -4,13 +4,14 @@ import bcrypt from "bcrypt";
 import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
-
+// Get users
 router.get("/", authMiddleware, async (req, res) => {
   const users = await prisma.user.findMany();
 
   res.json(users);
 });
 
+// Create users
 router.post("/", async (req, res) => {
   try {
     const { name, email, password } = req.body;

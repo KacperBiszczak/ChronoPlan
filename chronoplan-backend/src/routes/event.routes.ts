@@ -4,6 +4,7 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 
+// Create event
 router.post("/", authMiddleware, async (req, res) => {
     try {
         const { title, description, date } = req.body;
@@ -28,6 +29,7 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 });
 
+// Get events
 router.get("/", authMiddleware, async (req, res) => {
     const user = (req as any).user;
 
@@ -43,6 +45,7 @@ router.get("/", authMiddleware, async (req, res) => {
     res.json(events);
 });
 
+// Get event details
 router.get("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
@@ -62,6 +65,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
     res.json(event);
 });
 
+// Update event
 router.put("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
@@ -97,6 +101,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     res.json(updatedEvent);
 });
 
+// Delete event
 router.delete("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
