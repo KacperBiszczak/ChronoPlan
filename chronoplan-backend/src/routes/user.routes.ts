@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
+import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   const users = await prisma.user.findMany();
 
   res.json(users);
