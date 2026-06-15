@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 
 import '../services/auth_service.dart';
 
@@ -54,6 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text('Zalogowano poprawnie'),
         ),
       );
+      context.go('/home');
+      
     } on DioException catch (error) {
       if (!mounted) return;
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'features/auth/screens/login_screen.dart';
+
+import 'core/router/app_router.dart';
 
 void main() {
   runApp(const ChronoPlanApp());
@@ -10,7 +11,7 @@ class ChronoPlanApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'ChronoPlan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -49,7 +50,7 @@ class ChronoPlanApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginScreen(),
+      routerConfig: appRouter,
     );
   }
 }
