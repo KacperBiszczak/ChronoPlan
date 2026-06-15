@@ -1,5 +1,5 @@
 {
-  "name": "chronoplan-backend",
+  "name": "chronoplan_backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
