@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final authService = AuthService();
 
   bool isLoading = false;
 
@@ -20,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void login() {
+  Future<void> login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
@@ -37,17 +41,44 @@ class _LoginScreenState extends State<LoginScreen> {
       isLoading = true;
     });
 
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        isLoading = false;
-      });
+    try {
+      await authService.login(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zalogowano poprawnie'),
+        ),
+      );
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message = error.response?.data['message'] ?? 'Błąd logowania';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Próba logowania: $email'),
+          content: Text(message),
         ),
       );
-    });
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nieoczekiwany błąd logowania'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   @override
