@@ -11,12 +11,22 @@ router.post("/", authMiddleware, async (req, res) => {
         const user = (req as any).user;
 
         const event = await prisma.event.create({
-        data: {
-            title,
-            description,
-            date: new Date(date),
-            creatorId: user.userId,
-        },
+            data: {
+                title,
+                description,
+                date: new Date(date),
+                creatorId: user.userId,
+                participants: {
+                create: {
+                    userId: user.userId,
+                    role: "ORGANIZER",
+                    status: "ACCEPTED",
+                },
+                },
+            },
+            include: {
+                participants: true,
+            },
         });
 
         res.status(201).json(event);

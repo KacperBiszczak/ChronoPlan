@@ -3,6 +3,8 @@ import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import eventRoutes from "./routes/event.routes";
 import taskRoutes from "./routes/task.routes";
+import expenseRoutes from "./routes/expense.routes";
+import participantRoutes from "./routes/participant.routes"
 
 const app = express();
 
@@ -18,6 +20,8 @@ app.use("/users", userRoutes);
 app.use("/auth", authRoutes);
 app.use("/events", eventRoutes);
 app.use("/tasks", taskRoutes);
+app.use("/expenses", expenseRoutes);
+app.use("/participants", participantRoutes)
 
 app.listen(5000, () => {
   console.log("Server działa na porcie 5000");

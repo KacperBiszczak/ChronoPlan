@@ -7,13 +7,15 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
 
-  events    Event[]
-  tasks     Task[]
+  events Event[]
+  tasks  Task[]
+
+  eventParticipants EventParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,11 +27,13 @@ model Event {
   description String?
   date        DateTime
 
-  creatorId   Int
-  creator     User @relation(fields: [creatorId], references: [id])
+  creatorId Int
+  creator   User @relation(fields: [creatorId], references: [id])
 
-  tasks        Task[]
-  expenses     Expense[]
+  tasks    Task[]
+  expenses Expense[]
+
+  participants EventParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -41,26 +45,55 @@ model Task {
   description String?
   status      TaskStatus @default(TODO)
 
-  eventId     Int
-  event       Event @relation(fields: [eventId], references: [id])
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
 
-  assigneeId  Int?
-  assignee    User? @relation(fields: [assigneeId], references: [id])
+  assigneeId Int?
+  assignee   User? @relation(fields: [assigneeId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Expense {
-  id        Int      @id @default(autoincrement())
-  title     String
-  amount    Float
+  id     Int    @id @default(autoincrement())
+  title  String
+  amount Float
 
-  eventId   Int
-  event     Event @relation(fields: [eventId], references: [id])
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EventParticipant {
+  id Int @id @default(autoincrement())
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role   EventRole         @default(PARTICIPANT)
+  status ParticipantStatus @default(INVITED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+}
+
+enum EventRole {
+  ORGANIZER
+  PARTICIPANT
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
 }
 
 enum TaskStatus {

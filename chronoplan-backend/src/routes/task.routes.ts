@@ -37,7 +37,7 @@ router.post("/", authMiddleware, async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-        message: "Błąd tworzenia zadania",
+            message: "Błąd tworzenia zadania",
         });
     }
 });
@@ -49,24 +49,24 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
 
     const event = await prisma.event.findFirst({
         where: {
-        id: eventId,
-        creatorId: user.userId,
+            id: eventId,
+            creatorId: user.userId,
         },
     });
 
     if (!event) {
         res.status(404).json({
-        message: "Nie znaleziono wydarzenia",
+            message: "Nie znaleziono wydarzenia",
         });
         return;
     }
 
     const tasks = await prisma.task.findMany({
         where: {
-        eventId,
+            eventId,
         },
         orderBy: {
-        createdAt: "asc",
+            createdAt: "asc",
         },
     });
 
@@ -93,7 +93,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         where: {
             id: taskId,
             event: {
-            creatorId: user.userId,
+                creatorId: user.userId,
             },
         },
         });
@@ -119,7 +119,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-        message: "Błąd zmiany statusu zadania",
+            message: "Błąd zmiany statusu zadania",
         });
     }
 });
