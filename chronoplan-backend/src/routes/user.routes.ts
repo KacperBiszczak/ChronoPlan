@@ -30,7 +30,15 @@ const router = Router();
  *         description: Brak tokenu lub nieprawidłowy token
  */
 router.get("/", authMiddleware, async (req, res) => {
-  const users = await prisma.user.findMany();
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
 
   res.json(users);
 });
