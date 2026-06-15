@@ -1,28 +1,25 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
 // Create task
 router.post("/", authMiddleware, async (req, res) => {
     try {
-        const user = (req as any).user;
-        const { title, description, eventId } = req.body;
+            const user = (req as any).user;
+            const { title, description, eventId } = req.body;
 
-        const event = await prisma.event.findFirst({
-        where: {
-            id: Number(eventId),
-            creatorId: user.userId,
-        },
-        });
+            const event = await canAccessEvent(Number(eventId), user.userId);
 
-        if (!event) {
-        res.status(404).json({
-            message: "Nie znaleziono wydarzenia",
-        });
-        return;
-        }
+            if (!event) {
+                res.status(404).json({
+                    message: "Nie znaleziono wydarzenia",
+                });
+                
+                return;
+            }
 
         const task = await prisma.task.create({
         data: {
@@ -47,12 +44,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const eventId = Number(req.params.eventId);
 
-    const event = await prisma.event.findFirst({
-        where: {
-            id: eventId,
-            creatorId: user.userId,
-        },
-    });
+    const event = await canAccessEvent(Number(eventId), user.userId);
 
     if (!event) {
         res.status(404).json({

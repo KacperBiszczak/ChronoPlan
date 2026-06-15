@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
@@ -9,12 +10,7 @@ router.post("/", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const { title, amount, eventId } = req.body;
 
-    const event = await prisma.event.findFirst({
-      where: {
-        id: Number(eventId),
-        creatorId: user.userId,
-      },
-    });
+    const event = await canAccessEvent(Number(eventId), user.userId);
 
     if (!event) {
       res.status(404).json({
@@ -45,12 +41,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const eventId = Number(req.params.eventId);
 
-  const event = await prisma.event.findFirst({
-    where: {
-      id: eventId,
-      creatorId: user.userId,
-    },
-  });
+  const event = await canAccessEvent(eventId, user.userId);
 
   if (!event) {
     res.status(404).json({
@@ -75,12 +66,7 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const eventId = Number(req.params.eventId);
 
-  const event = await prisma.event.findFirst({
-    where: {
-      id: eventId,
-      creatorId: user.userId,
-    },
-  });
+  const event = await canAccessEvent(eventId, user.userId);
 
   if (!event) {
     res.status(404).json({
