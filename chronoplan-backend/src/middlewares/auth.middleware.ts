@@ -36,7 +36,17 @@ export const authMiddleware = (
   try {
     const decoded = jwt.verify(token, secret);
 
-    (req as any).user = decoded;
+    if (typeof decoded === "string" || !decoded.userId) {
+      res.status(401).json({
+        message: "Nieprawidłowy token",
+      });
+      return;
+    }
+
+    (req as any).user = {
+      userId: decoded.userId,
+      email: decoded.email,
+    };
 
     next();
   } catch {

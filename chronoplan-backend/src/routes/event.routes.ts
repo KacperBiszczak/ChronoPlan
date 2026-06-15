@@ -41,14 +41,55 @@ router.post("/", authMiddleware, async (req, res) => {
 
 // Get events
 router.get("/", authMiddleware, async (req, res) => {
+
     const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+        res.status(401).json({
+            message: "Nieprawidłowy token użytkownika",
+        });
+        return;
+    }
 
     const events = await prisma.event.findMany({
         where: {
-        creatorId: user.userId,
+            OR: [
+                {
+                    creatorId: userId,
+                },
+                {
+                    participants: {
+                        some: {
+                            userId: userId,
+                            status: "ACCEPTED",
+                        },
+                    }
+                }
+            ]
+        },
+        include: {
+            creator: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            },
+            participants: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
+                    },
+                },
+            },
         },
         orderBy: {
-        date: "asc",
+            date: "asc",
         },
     });
 
@@ -62,13 +103,13 @@ router.get("/:id", authMiddleware, async (req, res) => {
 
     const event = await prisma.event.findFirst({
         where: {
-        id,
-        creatorId: user.userId,
+            id,
+            creatorId: user.userId,
         },
     });
 
     if (!event) {
-        res.status(404).json({ message: "Nie znaleziono wydarzenia" });
+            res.status(404).json({ message: "Nie znaleziono wydarzenia" });
         return;
     }
 
@@ -83,8 +124,8 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
     const existingEvent = await prisma.event.findFirst({
         where: {
-        id,
-        creatorId: user.userId,
+            id,
+            creatorId: user.userId,
         },
     });
 
@@ -118,8 +159,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
     const existingEvent = await prisma.event.findFirst({
         where: {
-        id,
-        creatorId: user.userId,
+            id,
+            creatorId: user.userId,
         },
     });
 
