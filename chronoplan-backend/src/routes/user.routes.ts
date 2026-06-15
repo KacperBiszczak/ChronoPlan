@@ -4,14 +4,61 @@ import bcrypt from "bcrypt";
 import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
-// Get users
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Pobranie listy użytkowników
+ *     description: Zwraca listę użytkowników. Endpoint wymaga tokenu JWT.
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista użytkowników
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/User"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ */
 router.get("/", authMiddleware, async (req, res) => {
   const users = await prisma.user.findMany();
 
   res.json(users);
 });
 
-// Create users
+/**
+ * @swagger
+ * /users:
+ *   post:
+ *     summary: Rejestracja użytkownika
+ *     description: Tworzy nowe konto użytkownika.
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/RegisterRequest"
+ *     responses:
+ *       201:
+ *         description: Użytkownik został utworzony
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/User"
+ *       409:
+ *         description: Użytkownik z takim emailem już istnieje
+ *       500:
+ *         description: Błąd tworzenia użytkownika
+ */
 router.post("/", async (req, res) => {
   try {
     const { name, email, password } = req.body;

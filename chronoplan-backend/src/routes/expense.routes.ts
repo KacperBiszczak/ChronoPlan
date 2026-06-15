@@ -5,6 +5,36 @@ import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /expenses:
+ *   post:
+ *     summary: Dodanie wydatku
+ *     description: Dodaje wydatek do wydarzenia. Wymaga dostępu do wydarzenia.
+ *     tags:
+ *       - Expenses
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/ExpenseRequest"
+ *     responses:
+ *       201:
+ *         description: Wydatek został dodany
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Expense"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ *       500:
+ *         description: Błąd dodawania wydatku
+ */
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
@@ -37,6 +67,37 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /expenses/event/{eventId}:
+ *   get:
+ *     summary: Pobranie wydatków wydarzenia
+ *     description: Zwraca listę wydatków przypisanych do wydarzenia. Wymaga dostępu do wydarzenia.
+ *     tags:
+ *       - Expenses
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Lista wydatków wydarzenia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/Expense"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const eventId = Number(req.params.eventId);
@@ -62,6 +123,35 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
   res.json(expenses);
 });
 
+/**
+ * @swagger
+ * /expenses/event/{eventId}/summary:
+ *   get:
+ *     summary: Podsumowanie wydatków wydarzenia
+ *     description: Zwraca sumę wszystkich wydatków przypisanych do wydarzenia.
+ *     tags:
+ *       - Expenses
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Suma wydatków wydarzenia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ExpenseSummary"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ */
 router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const eventId = Number(req.params.eventId);
@@ -89,6 +179,31 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /expenses/{id}:
+ *   delete:
+ *     summary: Usunięcie wydatku
+ *     description: Usuwa wydatek przypisany do wydarzenia.
+ *     tags:
+ *       - Expenses
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydatku
+ *     responses:
+ *       200:
+ *         description: Wydatek został usunięty
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydatku
+ */
 router.delete("/:id", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const id = Number(req.params.id);

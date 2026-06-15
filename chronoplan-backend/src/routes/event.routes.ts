@@ -4,7 +4,34 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 
-// Create event
+/**
+ * @swagger
+ * /events:
+ *   post:
+ *     summary: Utworzenie wydarzenia
+ *     description: Tworzy nowe wydarzenie i automatycznie dodaje twórcę jako organizatora.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/EventRequest"
+ *     responses:
+ *       201:
+ *         description: Wydarzenie zostało utworzone
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Event"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       500:
+ *         description: Błąd tworzenia wydarzenia
+ */
 router.post("/", authMiddleware, async (req, res) => {
     try {
         const { title, description, date } = req.body;
@@ -39,7 +66,28 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 });
 
-// Get events
+/**
+ * @swagger
+ * /events:
+ *   get:
+ *     summary: Pobranie wydarzeń użytkownika
+ *     description: Zwraca wydarzenia utworzone przez użytkownika oraz wydarzenia, w których jest zaakceptowanym uczestnikiem.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista wydarzeń
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/Event"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ */
 router.get("/", authMiddleware, async (req, res) => {
 
     const user = (req as any).user;
@@ -96,7 +144,35 @@ router.get("/", authMiddleware, async (req, res) => {
     res.json(events);
 });
 
-// Get event details
+/**
+ * @swagger
+ * /events/{id}:
+ *   get:
+ *     summary: Pobranie szczegółów wydarzenia
+ *     description: Zwraca pojedyncze wydarzenie po ID.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Szczegóły wydarzenia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Event"
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ */
 router.get("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
@@ -116,7 +192,41 @@ router.get("/:id", authMiddleware, async (req, res) => {
     res.json(event);
 });
 
-// Update event
+/**
+ * @swagger
+ * /events/{id}:
+ *   put:
+ *     summary: Edycja wydarzenia
+ *     description: Aktualizuje dane wydarzenia. Dostępne dla organizatora wydarzenia.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/EventRequest"
+ *     responses:
+ *       200:
+ *         description: Wydarzenie zostało zaktualizowane
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Event"
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ */
 router.put("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
@@ -152,7 +262,31 @@ router.put("/:id", authMiddleware, async (req, res) => {
     res.json(updatedEvent);
 });
 
-// Delete event
+/**
+ * @swagger
+ * /events/{id}:
+ *   delete:
+ *     summary: Usunięcie wydarzenia
+ *     description: Usuwa wydarzenie. Dostępne tylko dla organizatora.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Wydarzenie zostało usunięte
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ */
 router.delete("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);

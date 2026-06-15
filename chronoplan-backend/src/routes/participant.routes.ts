@@ -4,6 +4,38 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /participants/invite:
+ *   post:
+ *     summary: Zaproszenie uczestnika do wydarzenia
+ *     description: Zaprasza użytkownika do wydarzenia na podstawie adresu email. Wymaga uprawnień organizatora wydarzenia.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/InviteParticipantRequest"
+ *     responses:
+ *       201:
+ *         description: Uczestnik został zaproszony
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/EventParticipant"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia lub użytkownika
+ *       409:
+ *         description: Użytkownik jest już uczestnikiem wydarzenia
+ *       500:
+ *         description: Błąd zapraszania uczestnika
+ */
 router.post("/invite", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
@@ -80,6 +112,30 @@ router.post("/invite", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /participants/my-invitations:
+ *   get:
+ *     summary: Pobranie moich zaproszeń
+ *     description: Zwraca zaproszenia oczekujące dla zalogowanego użytkownika.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista zaproszeń użytkownika
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/EventParticipant"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       500:
+ *         description: Błąd pobierania zaproszeń
+ */
 router.get("/my-invitations", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
@@ -121,6 +177,37 @@ router.get("/my-invitations", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /participants/event/{eventId}:
+ *   get:
+ *     summary: Pobranie uczestników wydarzenia
+ *     description: Zwraca listę uczestników konkretnego wydarzenia. Wymaga bycia uczestnikiem wydarzenia.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Lista uczestników wydarzenia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/EventParticipant"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       403:
+ *         description: Użytkownik nie jest uczestnikiem wydarzenia
+ */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
   const user = (req as any).user;
   const eventId = Number(req.params.eventId);
@@ -160,6 +247,45 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
   res.json(participants);
 });
 
+/**
+ * @swagger
+ * /participants/{id}/status:
+ *   patch:
+ *     summary: Zmiana statusu zaproszenia
+ *     description: Pozwala zaproszonemu użytkownikowi zaakceptować lub odrzucić zaproszenie.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID zaproszenia / uczestnictwa
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/ParticipantStatusRequest"
+ *     responses:
+ *       200:
+ *         description: Status zaproszenia został zmieniony
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/EventParticipant"
+ *       400:
+ *         description: Nieprawidłowy status uczestnictwa
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono zaproszenia
+ *       500:
+ *         description: Błąd zmiany statusu zaproszenia
+ */
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;

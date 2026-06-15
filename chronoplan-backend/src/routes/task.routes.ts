@@ -5,7 +5,36 @@ import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
-// Create task
+/**
+ * @swagger
+ * /tasks:
+ *   post:
+ *     summary: Utworzenie zadania
+ *     description: Tworzy zadanie przypisane do wydarzenia. Wymaga dostępu do wydarzenia.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/TaskRequest"
+ *     responses:
+ *       201:
+ *         description: Zadanie zostało utworzone
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Task"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ *       500:
+ *         description: Błąd tworzenia zadania
+ */
 router.post("/", authMiddleware, async (req, res) => {
     try {
             const user = (req as any).user;
@@ -39,7 +68,37 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 });
 
-// Get tasks assigned to event
+/**
+ * @swagger
+ * /tasks/event/{eventId}:
+ *   get:
+ *     summary: Pobranie zadań wydarzenia
+ *     description: Zwraca zadania przypisane do konkretnego wydarzenia. Wymaga dostępu do wydarzenia.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Lista zadań wydarzenia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/Task"
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const eventId = Number(req.params.eventId);
@@ -65,7 +124,43 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
     res.json(tasks);
 });
 
-// Update task status
+/**
+ * @swagger
+ * /tasks/{id}/status:
+ *   patch:
+ *     summary: Zmiana statusu zadania
+ *     description: Aktualizuje status zadania.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID zadania
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/TaskStatusRequest"
+ *     responses:
+ *       200:
+ *         description: Status zadania został zmieniony
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Task"
+ *       400:
+ *         description: Nieprawidłowy status
+ *       401:
+ *         description: Brak tokenu lub nieprawidłowy token
+ *       404:
+ *         description: Nie znaleziono zadania
+ */
 router.patch("/:id/status", authMiddleware, async (req, res) => {
     try {
         const user = (req as any).user;

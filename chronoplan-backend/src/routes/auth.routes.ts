@@ -5,7 +5,30 @@ import jwt from "jsonwebtoken";
 
 const router = Router();
 
-// Login
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Logowanie użytkownika
+ *     description: Loguje użytkownika i zwraca token JWT.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/LoginRequest"
+ *     responses:
+ *       200:
+ *         description: Użytkownik zalogowany poprawnie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/AuthResponse"
+ *       401:
+ *         description: Nieprawidłowy email lub hasło
+ */
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 

@@ -1,4 +1,6 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import eventRoutes from "./routes/event.routes";
@@ -9,6 +11,8 @@ import participantRoutes from "./routes/participant.routes"
 const app = express();
 
 app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get("/", (req, res) => {
   res.json({
