@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { validateBody } from "../middlewares/validate.middleware";
+import {
+  inviteParticipantSchema,
+  updateParticipantStatusSchema,
+} from "../validators/participant.validator";
 
 const router = Router();
 
@@ -36,7 +41,7 @@ const router = Router();
  *       500:
  *         description: Błąd zapraszania uczestnika
  */
-router.post("/invite", authMiddleware, async (req, res) => {
+router.post("/invite", authMiddleware, validateBody(inviteParticipantSchema), async (req, res) => {
   try {
     const user = (req as any).user;
     const { eventId, email } = req.body;
@@ -286,7 +291,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
  *       500:
  *         description: Błąd zmiany statusu zaproszenia
  */
-router.patch("/:id/status", authMiddleware, async (req, res) => {
+router.patch("/:id/status", authMiddleware, validateBody(updateParticipantStatusSchema), async (req, res) => {
   try {
     const user = (req as any).user;
     const id = Number(req.params.id);

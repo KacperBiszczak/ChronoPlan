@@ -2,6 +2,8 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { validateBody } from "../middlewares/validate.middleware";
+import { registerUserSchema } from "../validators/user.validator";
 
 const router = Router();
 
@@ -59,7 +61,7 @@ router.get("/", authMiddleware, async (req, res) => {
  *       500:
  *         description: Błąd tworzenia użytkownika
  */
-router.post("/", async (req, res) => {
+router.post("/", validateBody(registerUserSchema), async (req, res) => {
   try {
     const { name, email, password } = req.body;
 

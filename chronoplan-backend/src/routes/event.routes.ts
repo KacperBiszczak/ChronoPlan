@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { validateBody } from "../middlewares/validate.middleware";
+import {
+  createEventSchema,
+  updateEventSchema,
+} from "../validators/event.validator";
 
 const router = Router();
 
@@ -32,7 +37,7 @@ const router = Router();
  *       500:
  *         description: Błąd tworzenia wydarzenia
  */
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, validateBody(createEventSchema), async (req, res) => {
     try {
         const { title, description, date } = req.body;
         const user = (req as any).user;
@@ -227,7 +232,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
  *       401:
  *         description: Brak tokenu lub nieprawidłowy token
  */
-router.put("/:id", authMiddleware, async (req, res) => {
+router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
     const { title, description, date } = req.body;

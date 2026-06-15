@@ -2,6 +2,8 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { canAccessEvent } from "../lib/event-access";
+import { validateBody } from "../middlewares/validate.middleware";
+import { createExpenseSchema } from "../validators/expense.validator";
 
 const router = Router();
 
@@ -35,7 +37,7 @@ const router = Router();
  *       500:
  *         description: Błąd dodawania wydatku
  */
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, res) => {
   try {
     const user = (req as any).user;
     const { title, amount, eventId } = req.body;

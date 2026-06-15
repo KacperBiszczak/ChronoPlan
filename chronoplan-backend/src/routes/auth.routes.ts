@@ -2,6 +2,9 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import { prisma } from "../lib/prisma";
 import jwt from "jsonwebtoken";
+import { validateBody } from "../middlewares/validate.middleware";
+import { loginSchema } from "../validators/auth.validator";
+
 
 const router = Router();
 
@@ -29,7 +32,7 @@ const router = Router();
  *       401:
  *         description: Nieprawidłowy email lub hasło
  */
-router.post("/login", async (req, res) => {
+router.post("/login", validateBody(loginSchema), async (req, res) => {
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({

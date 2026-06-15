@@ -2,6 +2,11 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { canAccessEvent } from "../lib/event-access";
+import { validateBody } from "../middlewares/validate.middleware";
+import {
+  createTaskSchema,
+  updateTaskStatusSchema,
+} from "../validators/task.validator";
 
 const router = Router();
 
@@ -35,7 +40,7 @@ const router = Router();
  *       500:
  *         description: Błąd tworzenia zadania
  */
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, validateBody(createTaskSchema), async (req, res) => {
     try {
             const user = (req as any).user;
             const { title, description, eventId } = req.body;
@@ -161,7 +166,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
  *       404:
  *         description: Nie znaleziono zadania
  */
-router.patch("/:id/status", authMiddleware, async (req, res) => {
+router.patch("/:id/status", authMiddleware, validateBody(updateTaskStatusSchema), async (req, res) => {
     try {
         const user = (req as any).user;
         const taskId = Number(req.params.id);
