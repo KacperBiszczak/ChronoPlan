@@ -182,7 +182,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         subtitle: const Text('Wydatki i podsumowanie kosztów'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // później przejdziemy do wydatków
+                          context.push('/events/${widget.eventId}/expenses');
                         },
                       ),
                     ),
