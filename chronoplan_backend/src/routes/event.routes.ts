@@ -6,6 +6,7 @@ import {
   createEventSchema,
   updateEventSchema,
 } from "../validators/event.validator";
+import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
@@ -182,15 +183,12 @@ router.get("/:id", authMiddleware, async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
 
-    const event = await prisma.event.findFirst({
-        where: {
-            id,
-            creatorId: user.userId,
-        },
-    });
-
+    const event = await canAccessEvent(id, user.userId);
+    
     if (!event) {
-            res.status(404).json({ message: "Nie znaleziono wydarzenia" });
+        res.status(404).json({ 
+            message: "Nie znaleziono wydarzenia"
+        });
         return;
     }
 
