@@ -49,6 +49,12 @@ class AuthService {
     return _storage.read(key: 'token');
   }
 
+  Future<bool> isLoggedIn() async {
+    final token = await getToken();
+
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> logout() async {
     await _storage.delete(key: 'token');
   }
