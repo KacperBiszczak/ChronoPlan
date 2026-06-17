@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     isThreeLine: true,
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // tutaj później przejdziemy do szczegółów wydarzenia
+                      context.push('/events/${event.id}');
                     },
                   ),
                 );
