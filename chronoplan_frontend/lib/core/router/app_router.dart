@@ -7,6 +7,7 @@ import '../../features/events/screens/event_details_screen.dart';
 import '../../features/tasks/screens/tasks_screen.dart';
 import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/participants/screens/participants_screen.dart';
+import '../../features/participants/screens/my_invitations_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -54,6 +55,10 @@ final appRouter = GoRouter(
 
         return ParticipantsScreen(eventId: id);
       },
+    ),
+    GoRoute(
+      path: '/invitations',
+      builder: (context, state) => const MyInvitationsScreen(),
     ),
   ],
 );

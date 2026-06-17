@@ -56,4 +56,42 @@ class ParticipantService {
 
     return ParticipantModel.fromJson(response.data);
   }
+
+  Future<List<ParticipantModel>> getMyInvitations() async {
+    final token = await _getToken();
+
+    final response = await _dio.get(
+      '/participants/my-invitations',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    final data = response.data as List;
+
+    return data.map((item) => ParticipantModel.fromJson(item)).toList();
+  }
+
+  Future<ParticipantModel> updateInvitationStatus({
+    required int participantId,
+    required String status,
+  }) async {
+    final token = await _getToken();
+
+    final response = await _dio.patch(
+      '/participants/$participantId/status',
+      data: {
+        'status': status,
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return ParticipantModel.fromJson(response.data);
+  }
 }
