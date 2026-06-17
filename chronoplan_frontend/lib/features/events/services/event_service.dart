@@ -58,4 +58,19 @@ class EventService {
 
     return EventModel.fromJson(response.data);
   }
+
+  Future<EventModel> getEventById(int id) async {
+    final token = await _getToken();
+
+    final response = await _dio.get(
+      '/events/$id',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return EventModel.fromJson(response.data);
+  }
 }
