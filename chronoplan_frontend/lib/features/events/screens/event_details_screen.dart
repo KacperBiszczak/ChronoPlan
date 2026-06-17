@@ -193,7 +193,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         subtitle: const Text('Zaproszenia i lista osób'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // później przejdziemy do uczestników
+                          context.push('/events/${widget.eventId}/participants');
                         },
                       ),
                     ),
