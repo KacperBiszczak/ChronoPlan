@@ -55,6 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await context.push<bool>('/events/create');
+
+          if (created == true) {
+            refreshEvents();
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
       body: RefreshIndicator(
         onRefresh: refreshEvents,
         child: FutureBuilder<List<EventModel>>(
