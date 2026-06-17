@@ -4,6 +4,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/events/screens/home_screen.dart';
 import '../../features/events/screens/create_event_screen.dart';
 import '../../features/events/screens/event_details_screen.dart';
+import '../../features/tasks/screens/tasks_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -26,6 +27,14 @@ final appRouter = GoRouter(
         final id = int.parse(state.pathParameters['id']!);
 
         return EventDetailsScreen(eventId: id);
+      },
+    ),
+    GoRoute(
+      path: '/events/:id/tasks',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+
+        return TasksScreen(eventId: id);
       },
     ),
   ],

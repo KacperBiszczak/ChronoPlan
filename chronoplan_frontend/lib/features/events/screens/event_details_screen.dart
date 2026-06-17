@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/event_model.dart';
 import '../services/event_service.dart';
+import 'package:go_router/go_router.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -170,7 +171,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         subtitle: const Text('Lista zadań wydarzenia'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // później przejdziemy do zadań
+                          context.push('/events/${widget.eventId}/tasks');
                         },
                       ),
                     ),
