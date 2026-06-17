@@ -139,6 +139,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : const Text('Zaloguj'),
                   ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/register');
+                    },
+                    child: const Text('Nie masz konta? Zarejestruj się'),
+                  ),
                 ],
               ),
             ),

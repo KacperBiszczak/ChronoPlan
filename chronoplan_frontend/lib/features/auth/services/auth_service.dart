@@ -30,6 +30,21 @@ class AuthService {
     );
   }
 
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    await _dio.post(
+      '/users',
+      data: {
+        'name': name,
+        'email': email,
+        'password': password,
+      },
+    );
+  }
+
   Future<String?> getToken() async {
     return _storage.read(key: 'token');
   }
