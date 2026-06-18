@@ -79,4 +79,17 @@ class TaskService {
 
     return TaskModel.fromJson(response.data);
   }
+  
+  Future<void> deleteTask(int taskId) async {
+    final token = await _getToken();
+
+    await _dio.delete(
+      '/tasks/$taskId',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
 }

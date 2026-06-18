@@ -85,6 +85,68 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  Future<void> deleteTask(TaskModel task) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Usuń zadanie'),
+          content: Text('Czy na pewno chcesz usunąć zadanie "${task.title}"?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Usuń'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (confirmed != true) return;
+
+    try {
+      await taskService.deleteTask(task.id);
+
+      await refreshTasks();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zadanie zostało usunięte'),
+        ),
+      );
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message = error.response?.data['message'] ?? 'Błąd usuwania zadania';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nieoczekiwany błąd'),
+        ),
+      );
+    }
+  }
+
   Future<void> showCreateTaskDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -276,6 +338,14 @@ class _TasksScreenState extends State<TasksScreen> {
 
                 changeStatus(task, value);
               },
+            ),
+            IconButton(
+              onPressed: () {
+                deleteTask(task);
+              },
+              icon: const Icon(Icons.delete_outline),
+              color: Colors.red,
+              tooltip: 'Usuń zadanie',
             ),
           ],
         ),
