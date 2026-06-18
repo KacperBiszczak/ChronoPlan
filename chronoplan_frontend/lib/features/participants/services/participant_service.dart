@@ -94,4 +94,17 @@ class ParticipantService {
 
     return ParticipantModel.fromJson(response.data);
   }
+
+  Future<void> deleteParticipant(int participantId) async {
+    final token = await _getToken();
+
+    await _dio.delete(
+      '/participants/$participantId',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
 }

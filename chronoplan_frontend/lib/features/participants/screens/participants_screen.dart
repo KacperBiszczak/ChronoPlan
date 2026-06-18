@@ -221,8 +221,75 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     }
   }
 
-  Widget buildParticipantCard(ParticipantModel participant) {
+  Future<void> deleteParticipant(ParticipantModel participant) async {
+    final userName = participant.user?.name ?? participant.user?.email ?? 'uczestnika';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Usuń uczestnika'),
+          content: Text('Czy na pewno chcesz usunąć "$userName" z wydarzenia?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Usuń'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (confirmed != true) return;
+
+    try {
+      await participantService.deleteParticipant(participant.id);
+
+      await refreshParticipants();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Uczestnik został usunięty'),
+        ),
+      );
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message =
+          error.response?.data['message'] ?? 'Błąd usuwania uczestnika';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nieoczekiwany błąd'),
+        ),
+      );
+    }
+  }
+
+  Widget buildParticipantCard(ParticipantModel participant, bool canManageParticipants) {
     final user = participant.user;
+    final canDeleteParticipant =
+        canManageParticipants && participant.role != 'ORGANIZER';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -242,14 +309,30 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           '${user?.email ?? 'Brak emaila'}\n${getRoleLabel(participant.role)}',
         ),
         isThreeLine: true,
-        trailing: Chip(
-          label: Text(
-            getStatusLabel(participant.status),
-            style: const TextStyle(
-              color: Colors.white,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Chip(
+              label: Text(
+                getStatusLabel(participant.status),
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+              backgroundColor: getStatusColor(participant.status),
             ),
-          ),
-          backgroundColor: getStatusColor(participant.status),
+            if (canDeleteParticipant) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  deleteParticipant(participant);
+                },
+                icon: const Icon(Icons.delete_outline),
+                color: Colors.red,
+                tooltip: 'Usuń uczestnika',
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -288,7 +371,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     );
   }
 
-  Widget buildParticipantsBody(List<ParticipantModel> participants) {
+  Widget buildParticipantsBody(List<ParticipantModel> participants, bool canManageParticipants) {
     if (participants.isEmpty) {
       return RefreshIndicator(
         onRefresh: refreshParticipants,
@@ -326,7 +409,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: participants.length,
         itemBuilder: (context, index) {
-          return buildParticipantCard(participants[index]);
+          return buildParticipantCard(participants[index], canManageParticipants);
         },
       ),
     );
@@ -363,7 +446,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
               final participants = data?.participants ?? [];
 
-              return buildParticipantsBody(participants);
+              return buildParticipantsBody(participants, data?.canInvite == true);
             },
           ),
         );
