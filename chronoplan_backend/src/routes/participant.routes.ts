@@ -347,4 +347,106 @@ router.patch("/:id/status", authMiddleware, validateBody(updateParticipantStatus
     }
 });
 
+/**
+ * @swagger
+ * /participants/{id}:
+ *   delete:
+ *     summary: Usuwa uczestnika z wydarzenia
+ *     description: Usuwa uczestnika lub anuluje zaproszenie. Operacja dostępna tylko dla organizatora wydarzenia.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID rekordu uczestnika
+ *     responses:
+ *       200:
+ *         description: Uczestnik został usunięty
+ *       400:
+ *         description: Nieprawidłowe ID lub próba usunięcia organizatora
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak uprawnień
+ *       404:
+ *         description: Nie znaleziono uczestnika
+ */
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const id = Number(req.params.id);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!id) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID uczestnika",
+      });
+      return;
+    }
+
+    const participant = await prisma.eventParticipant.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        event: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!participant) {
+      res.status(404).json({
+        message: "Nie znaleziono uczestnika",
+      });
+      return;
+    }
+
+    if (participant.event.creatorId !== userId) {
+      res.status(403).json({
+        message: "Tylko organizator może usuwać uczestników",
+      });
+      return;
+    }
+
+    if (participant.role === "ORGANIZER") {
+      res.status(400).json({
+        message: "Nie można usunąć organizatora wydarzenia",
+      });
+      return;
+    }
+
+    await prisma.eventParticipant.delete({
+      where: {
+        id,
+      },
+    });
+
+    res.json({
+      message: "Uczestnik został usunięty",
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd usuwania uczestnika",
+    });
+  }
+});
+
 export default router;
