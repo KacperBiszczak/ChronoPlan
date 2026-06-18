@@ -1,8 +1,19 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
+
+class ParticipantsScreenData {
+  final List<ParticipantModel> participants;
+  final bool canInvite;
+
+  ParticipantsScreenData({
+    required this.participants,
+    required this.canInvite,
+  });
+}
 
 class ParticipantsScreen extends StatefulWidget {
   final int eventId;
@@ -18,21 +29,39 @@ class ParticipantsScreen extends StatefulWidget {
 
 class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final participantService = ParticipantService();
+  final authService = AuthService();
 
-  late Future<List<ParticipantModel>> participantsFuture;
+  late Future<ParticipantsScreenData> participantsFuture;
 
   @override
   void initState() {
     super.initState();
-    participantsFuture =
-        participantService.getParticipantsByEvent(widget.eventId);
+    participantsFuture = loadParticipantsData();
+  }
+
+  Future<ParticipantsScreenData> loadParticipantsData() async {
+    final currentUser = await authService.getCurrentUser();
+    final participants =
+        await participantService.getParticipantsByEvent(widget.eventId);
+
+    final canInvite = participants.any(
+      (participant) =>
+          participant.userId == currentUser.id &&
+          participant.role == 'ORGANIZER',
+    );
+
+    return ParticipantsScreenData(
+      participants: participants,
+      canInvite: canInvite,
+    );
   }
 
   Future<void> refreshParticipants() async {
     setState(() {
-      participantsFuture =
-          participantService.getParticipantsByEvent(widget.eventId);
+      participantsFuture = loadParticipantsData();
     });
+
+    await participantsFuture;
   }
 
   String getRoleLabel(String role) {
@@ -226,97 +255,119 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     );
   }
 
+  Widget buildErrorBody(Object error) {
+    return RefreshIndicator(
+      onRefresh: refreshParticipants,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 80),
+          const Icon(
+            Icons.error_outline,
+            size: 56,
+            color: Colors.red,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Nie udało się pobrać uczestników',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error.toString(),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: refreshParticipants,
+            child: const Text('Spróbuj ponownie'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildParticipantsBody(List<ParticipantModel> participants) {
+    if (participants.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: refreshParticipants,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: const [
+            SizedBox(height: 100),
+            Icon(
+              Icons.group,
+              size: 56,
+              color: Colors.blue,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Brak uczestników',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Zaproś pierwszą osobę do wydarzenia.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: refreshParticipants,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: participants.length,
+        itemBuilder: (context, index) {
+          return buildParticipantCard(participants[index]);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Uczestnicy'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: showInviteDialog,
-        child: const Icon(Icons.person_add),
-      ),
-      body: RefreshIndicator(
-        onRefresh: refreshParticipants,
-        child: FutureBuilder<List<ParticipantModel>>(
-          future: participantsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
+    return FutureBuilder<ParticipantsScreenData>(
+      future: participantsFuture,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
 
-            if (snapshot.hasError) {
-              return ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  const SizedBox(height: 80),
-                  const Icon(
-                    Icons.error_outline,
-                    size: 56,
-                    color: Colors.red,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nie udało się pobrać uczestników',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: refreshParticipants,
-                    child: const Text('Spróbuj ponownie'),
-                  ),
-                ],
-              );
-            }
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Uczestnicy'),
+          ),
+          floatingActionButton: data?.canInvite == true
+              ? FloatingActionButton(
+                  onPressed: showInviteDialog,
+                  child: const Icon(Icons.person_add),
+                )
+              : null,
+          body: Builder(
+            builder: (context) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
 
-            final participants = snapshot.data ?? [];
+              if (snapshot.hasError) {
+                return buildErrorBody(snapshot.error!);
+              }
 
-            if (participants.isEmpty) {
-              return ListView(
-                padding: const EdgeInsets.all(24),
-                children: const [
-                  SizedBox(height: 100),
-                  Icon(
-                    Icons.group,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Brak uczestników',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Zaproś pierwszą osobę do wydarzenia.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              );
-            }
+              final participants = data?.participants ?? [];
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: participants.length,
-              itemBuilder: (context, index) {
-                return buildParticipantCard(participants[index]);
-              },
-            );
-          },
-        ),
-      ),
+              return buildParticipantsBody(participants);
+            },
+          ),
+        );
+      },
     );
   }
 }
