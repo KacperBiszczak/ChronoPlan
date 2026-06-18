@@ -39,6 +39,7 @@ class TaskService {
     required String title,
     required String? description,
     required int eventId,
+    required int? assigneeId,
   }) async {
     final token = await _getToken();
 
@@ -48,6 +49,7 @@ class TaskService {
         'title': title,
         'description': description,
         'eventId': eventId,
+        'assigneeId': assigneeId,
       },
       options: Options(
         headers: {

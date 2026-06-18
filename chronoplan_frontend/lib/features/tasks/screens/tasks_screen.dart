@@ -192,6 +192,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   title: title,
                   description: description.isEmpty ? null : description,
                   eventId: widget.eventId,
+                  assigneeId: null,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -325,6 +326,16 @@ class _TasksScreenState extends State<TasksScreen> {
                     const SizedBox(height: 4),
                     Text(task.description!),
                   ],
+                  const SizedBox(height: 4),
+                  Text(
+                    task.assignee != null
+                        ? 'Odpowiedzialny: ${task.assignee!.name}'
+                        : 'Nie przypisano osoby',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
