@@ -45,7 +45,7 @@ const router = Router();
 router.post("/", authMiddleware, validateBody(createTaskSchema), async (req, res) => {
     try {
             const user = (req as any).user;
-            const { title, description, eventId } = req.body;
+            const { title, description, eventId, assigneeId } = req.body;
 
             const event = await canAccessEvent(Number(eventId), user.userId);
 
@@ -57,12 +57,39 @@ router.post("/", authMiddleware, validateBody(createTaskSchema), async (req, res
                 return;
             }
 
+        if (assigneeId) {
+          const participant = await prisma.eventParticipant.findFirst({
+            where: {
+              eventId,
+              userId: assigneeId,
+              status: "ACCEPTED",
+            },
+          });
+
+          if (!participant) {
+            res.status(400).json({
+              message: "Wybrany użytkownik nie jest zaakceptowanym uczestnikiem wydarzenia",
+            });
+            return;
+          }
+        }
+
         const task = await prisma.task.create({
-        data: {
-            title,
-            description,
-            eventId: Number(eventId),
-        },
+          data: {
+              title,
+              description,
+              eventId: Number(eventId),
+              assigneeId,
+          },
+          include: {
+            assignee: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            }
+          }
         });
 
         res.status(201).json(task);
@@ -122,6 +149,15 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
     const tasks = await prisma.task.findMany({
         where: {
             eventId,
+        },
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
         orderBy: {
             createdAt: "asc",
@@ -206,6 +242,15 @@ router.patch("/:id/status", authMiddleware, validateBody(updateTaskStatusSchema)
         data: {
             status,
         },
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          }
+        }
         });
 
         res.json(updatedTask);
