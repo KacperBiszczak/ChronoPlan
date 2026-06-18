@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { canAccessEvent } from "../lib/event-access";
+import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import {
   createTaskSchema,
   updateTaskStatusSchema,
 } from "../validators/task.validator";
+
+
 
 const router = Router();
 
@@ -214,6 +216,94 @@ router.patch("/:id/status", authMiddleware, validateBody(updateTaskStatusSchema)
             message: "Błąd zmiany statusu zadania",
         });
     }
+});
+
+/**
+ * @swagger
+ * /tasks/{id}:
+ *   delete:
+ *     summary: Usuwa zadanie
+ *     description: Usuwa zadanie z wydarzenia. Operacja dostępna tylko dla organizatora wydarzenia.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID zadania
+ *     responses:
+ *       200:
+ *         description: Zadanie zostało usunięte
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak uprawnień do usunięcia zadania
+ *       404:
+ *         description: Nie znaleziono zadania
+ */
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const id = Number(req.params.id);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!id) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID zadania",
+      });
+      return;
+    }
+
+    const task = await prisma.task.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        event: true,
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({
+        message: "Nie znaleziono zadania",
+      });
+      return;
+    }
+
+    const organizerEvent = await isEventOrganizer(task.eventId, userId);
+
+    if (!organizerEvent) {
+      res.status(403).json({
+        message: "Tylko organizator może usuwać zadania",
+      });
+      return;
+    }
+
+    await prisma.task.delete({
+      where: {
+        id,
+      },
+    });
+
+    res.json({
+      message: "Zadanie zostało usunięte",
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd usuwania zadania",
+    });
+  }
 });
 
 export default router;

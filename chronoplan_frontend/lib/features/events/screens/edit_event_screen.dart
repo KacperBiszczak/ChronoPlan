@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/event_model.dart';
 import '../services/event_service.dart';
 
 class EditEventScreen extends StatefulWidget {
