@@ -73,4 +73,42 @@ class EventService {
 
     return EventModel.fromJson(response.data);
   }
+
+  Future<EventModel> updateEvent({
+    required int id,
+    required String title,
+    required String? description,
+    required DateTime date,
+  }) async {
+    final token = await _getToken();
+
+    final response = await _dio.put(
+      '/events/$id',
+      data: {
+        'title': title,
+        'description': description,
+        'date': date.toUtc().toIso8601String(),
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return EventModel.fromJson(response.data);
+  }
+
+  Future<void> deleteEvent(int id) async {
+    final token = await _getToken();
+
+    await _dio.delete(
+      '/events/$id',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
 }

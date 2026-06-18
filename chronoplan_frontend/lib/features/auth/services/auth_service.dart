@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
 
 import '../../../core/services/api_client.dart';
+import '../models/user_model.dart';
 
 class AuthService {
   final _dio = ApiClient.dio;
@@ -43,6 +45,25 @@ class AuthService {
         'password': password,
       },
     );
+  }
+
+  Future<UserModel> getCurrentUser() async {
+    final token = await getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Brak tokenu użytkownika');
+    }
+
+    final response = await _dio.get(
+      '/auth/me',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return UserModel.fromJson(response.data);
   }
 
   Future<String?> getToken() async {

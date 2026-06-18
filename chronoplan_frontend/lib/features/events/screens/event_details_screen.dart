@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 import '../models/event_model.dart';
 import '../services/event_service.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/services/auth_service.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -18,6 +20,9 @@ class EventDetailsScreen extends StatefulWidget {
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final eventService = EventService();
+  final authService = AuthService();
+
+  int? currentUserId;
 
   late Future<EventModel> eventFuture;
 
@@ -25,6 +30,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   void initState() {
     super.initState();
     eventFuture = eventService.getEventById(widget.eventId);
+    loadCurrentUser();
   }
 
   String formatDate(DateTime date) {
@@ -39,6 +45,93 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     setState(() {
       eventFuture = eventService.getEventById(widget.eventId);
     });
+  }
+
+  Future<void> loadCurrentUser() async {
+    try {
+      final user = await authService.getCurrentUser();
+
+      if (!mounted) return;
+
+      setState(() {
+        currentUserId = user.id;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        currentUserId = null;
+      });
+    }
+  }
+
+  bool isOrganizer(EventModel event) {
+    return currentUserId != null && event.creatorId == currentUserId;
+  }
+
+  Future<void> deleteEvent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Usuń wydarzenie'),
+          content: const Text(
+            'Czy na pewno chcesz usunąć to wydarzenie? Tej operacji nie można cofnąć.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Usuń'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (confirmed != true) return;
+
+    try {
+      await eventService.deleteEvent(widget.eventId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wydarzenie zostało usunięte'),
+        ),
+      );
+
+      context.go('/home');
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message =
+          error.response?.data['message'] ?? 'Błąd usuwania wydarzenia';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nieoczekiwany błąd'),
+        ),
+      );
+    }
   }
 
   Widget buildInfoCard({
@@ -69,6 +162,30 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(event?.title ?? 'Szczegóły wydarzenia'),
+            actions: [
+              if (event != null && isOrganizer(event)) ...[
+                IconButton(
+                  onPressed: () async {
+                    final updated = await context.push<bool>(
+                      '/events/${widget.eventId}/edit',
+                    );
+
+                    if (!mounted) return;
+
+                    if (updated == true) {
+                      refreshEvent();
+                    }
+                  },
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Edytuj wydarzenie',
+                ),
+                IconButton(
+                  onPressed: deleteEvent,
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Usuń wydarzenie',
+                ),
+              ],
+            ],
           ),
           body: RefreshIndicator(
             onRefresh: refreshEvent,

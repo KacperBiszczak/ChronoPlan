@@ -10,6 +10,7 @@ import '../../features/tasks/screens/tasks_screen.dart';
 import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/participants/screens/participants_screen.dart';
 import '../../features/participants/screens/my_invitations_screen.dart';
+import '../../features/events/screens/edit_event_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -33,6 +34,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/events/create',
       builder: (context, state) => const CreateEventScreen(),
+    ),
+    GoRoute(
+      path: '/events/:id/edit',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+
+        return EditEventScreen(eventId: id);
+      },
     ),
     GoRoute(
       path: '/events/:id',
