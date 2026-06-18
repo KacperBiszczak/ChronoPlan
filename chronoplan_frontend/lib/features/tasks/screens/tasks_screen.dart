@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/services/auth_service.dart';
+import '../../events/services/event_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 
@@ -18,6 +20,10 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
   final taskService = TaskService();
+  final eventService = EventService();
+  final authService = AuthService();
+
+  bool canDeleteTasks = false;
 
   late Future<List<TaskModel>> tasksFuture;
 
@@ -25,12 +31,18 @@ class _TasksScreenState extends State<TasksScreen> {
   void initState() {
     super.initState();
     tasksFuture = taskService.getTasksByEvent(widget.eventId);
+    loadPermissions();
   }
 
   Future<void> refreshTasks() async {
+    final future = taskService.getTasksByEvent(widget.eventId);
+    
     setState(() {
       tasksFuture = taskService.getTasksByEvent(widget.eventId);
     });
+
+    await loadPermissions();
+    await future;
   }
 
   String getStatusLabel(String status) {
@@ -339,18 +351,38 @@ class _TasksScreenState extends State<TasksScreen> {
                 changeStatus(task, value);
               },
             ),
-            IconButton(
-              onPressed: () {
-                deleteTask(task);
-              },
-              icon: const Icon(Icons.delete_outline),
-              color: Colors.red,
-              tooltip: 'Usuń zadanie',
-            ),
+            if (canDeleteTasks)
+              IconButton(
+                onPressed: () {
+                  deleteTask(task);
+                },
+                icon: const Icon(Icons.delete_outline),
+                color: Colors.red,
+                tooltip: 'Usuń zadanie',
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> loadPermissions() async {
+    try {
+      final currentUser = await authService.getCurrentUser();
+      final event = await eventService.getEventById(widget.eventId);
+
+      if (!mounted) return;
+
+      setState(() {
+        canDeleteTasks = event.creatorId == currentUser.id;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        canDeleteTasks = false;
+      });
+    }
   }
 
   @override
