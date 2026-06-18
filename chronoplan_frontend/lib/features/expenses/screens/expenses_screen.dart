@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/services/auth_service.dart';
+import '../../events/services/event_service.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
 
@@ -18,6 +20,10 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   final expenseService = ExpenseService();
+  final eventService = EventService();
+  final authService = AuthService();
+
+  bool canManageExpenses = false;
 
   late Future<List<ExpenseModel>> expensesFuture;
   late Future<double> summaryFuture;
@@ -26,6 +32,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   void initState() {
     super.initState();
     loadData();
+    loadPermissions();
   }
 
   void loadData() {
@@ -34,9 +41,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> refreshExpenses() async {
+    final expenses = expenseService.getExpensesByEvent(widget.eventId);
+    final summary = expenseService.getExpenseSummary(widget.eventId);
+
     setState(() {
-      loadData();
+      expensesFuture = expenses;
+      summaryFuture = summary;
     });
+
+    await loadPermissions();
+    await Future.wait([
+      expenses,
+      summary,
+    ]);
   }
 
   String formatAmount(double amount) {
@@ -291,14 +308,34 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(formatAmount(expense.amount)),
-        trailing: IconButton(
+        trailing: canManageExpenses
+          ? IconButton(
           onPressed: () => deleteExpense(expense),
           icon: const Icon(Icons.delete_outline),
           color: Colors.red,
           tooltip: 'Usuń',
-        ),
+        ): null,
       ),
     );
+  }
+
+  Future<void> loadPermissions() async {
+    try {
+      final currentUser = await authService.getCurrentUser();
+      final event = await eventService.getEventById(widget.eventId);
+
+      if (!mounted) return;
+
+      setState(() {
+        canManageExpenses = event.creatorId == currentUser.id;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        canManageExpenses = false;
+      });
+    }
   }
 
   @override
@@ -307,10 +344,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       appBar: AppBar(
         title: const Text('Budżet'),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: canManageExpenses
+        ? FloatingActionButton(
         onPressed: showCreateExpenseDialog,
         child: const Icon(Icons.add),
-      ),
+      ): null,
       body: RefreshIndicator(
         onRefresh: refreshExpenses,
         child: FutureBuilder<List<ExpenseModel>>(
