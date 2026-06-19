@@ -112,10 +112,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
     });
   }
 
+  String twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
   String formatDate(DateTime? date) {
     if (date == null) return 'Wybierz datę';
 
-    return '${date.day}.${date.month}.${date.year}';
+    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
   }
 
   String formatTime(TimeOfDay? time) {

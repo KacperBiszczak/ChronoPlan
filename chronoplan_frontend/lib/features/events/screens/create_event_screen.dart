@@ -127,8 +127,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
   }
 
+  String twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
   String formatDate(DateTime date) {
-    return '${date.day}.${date.month}.${date.year}';
+    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
   }
 
   String formatTime(TimeOfDay time) {

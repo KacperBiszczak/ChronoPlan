@@ -33,12 +33,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     loadCurrentUser();
   }
 
+  String twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
   String formatDate(DateTime date) {
-    return '${date.day}.${date.month}.${date.year}';
+    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
   }
 
   String formatTime(DateTime date) {
-    return '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
   Future<void> refreshEvent() async {

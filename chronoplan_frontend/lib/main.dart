@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/router/app_router.dart';
 
@@ -14,6 +15,17 @@ class ChronoPlanApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'ChronoPlan',
       debugShowCheckedModeBanner: false,
+      
+      locale: const Locale('pl', 'PL'),
+      supportedLocales: const [
+        Locale('pl', 'PL'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
