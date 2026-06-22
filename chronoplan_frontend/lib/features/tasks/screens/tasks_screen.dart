@@ -74,6 +74,204 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  Future<void> showEditTaskDialog(TaskModel task) async {
+    final titleController = TextEditingController(text: task.title);
+    final descriptionController = TextEditingController(
+      text: task.description ?? '',
+    );
+
+    bool isLoading = false;
+    int? selectedAssigneeId = task.assigneeId;
+
+    final participantsFuture =
+        participantService.getParticipantsByEvent(widget.eventId);
+
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> updateTask() async {
+              final title = titleController.text.trim();
+              final description = descriptionController.text.trim();
+
+              if (title.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Podaj tytuł zadania'),
+                  ),
+                );
+                return;
+              }
+
+              setDialogState(() {
+                isLoading = true;
+              });
+
+              try {
+                await taskService.updateTask(
+                  taskId: task.id,
+                  title: title,
+                  description: description.isEmpty ? null : description,
+                  assigneeId: selectedAssigneeId,
+                );
+
+                if (!dialogContext.mounted) return;
+
+                Navigator.of(dialogContext).pop(true);
+              } on DioException catch (error) {
+                if (!dialogContext.mounted) return;
+
+                setDialogState(() {
+                  isLoading = false;
+                });
+
+                final message =
+                    error.response?.data['message'] ?? 'Błąd edycji zadania';
+
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                  ),
+                );
+              } catch (_) {
+                if (!dialogContext.mounted) return;
+
+                setDialogState(() {
+                  isLoading = false;
+                });
+
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nieoczekiwany błąd'),
+                  ),
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Edytuj zadanie'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tytuł zadania',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Opis',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FutureBuilder<List<ParticipantModel>>(
+                      future: participantsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const LinearProgressIndicator();
+                        }
+
+                        if (snapshot.hasError) {
+                          return const Text(
+                            'Nie udało się pobrać uczestników',
+                            style: TextStyle(color: Colors.red),
+                          );
+                        }
+
+                        final participants = (snapshot.data ?? [])
+                            .where(
+                              (participant) =>
+                                  participant.status == 'ACCEPTED' &&
+                                  participant.user != null,
+                            )
+                            .toList();
+
+                        return DropdownButtonFormField<int?>(
+                          value: selectedAssigneeId,
+                          decoration: const InputDecoration(
+                            labelText: 'Osoba odpowiedzialna',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<int?>(
+                              value: null,
+                              child: Text('Nie przypisuj'),
+                            ),
+                            ...participants.map(
+                              (participant) => DropdownMenuItem<int?>(
+                                value: participant.userId,
+                                child: Text(
+                                  '${participant.user!.name} (${participant.user!.email})',
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: isLoading
+                              ? null
+                              : (value) {
+                                  setDialogState(() {
+                                    selectedAssigneeId = value;
+                                  });
+                                },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                  child: const Text('Anuluj'),
+                ),
+                FilledButton(
+                  onPressed: isLoading ? null : updateTask,
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Zapisz'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    titleController.dispose();
+    descriptionController.dispose();
+
+    if (!mounted) return;
+
+    if (updated == true) {
+      await refreshTasks();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zadanie zostało zaktualizowane'),
+        ),
+      );
+    }
+  }
+
   Future<void> changeStatus(TaskModel task, String status) async {
     try {
       await taskService.updateTaskStatus(
@@ -420,6 +618,14 @@ class _TasksScreenState extends State<TasksScreen> {
                 changeStatus(task, value);
               },
             ),
+            if (canDeleteTasks)
+              IconButton(
+                onPressed: () {
+                  showEditTaskDialog(task);
+                },
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edytuj zadanie',
+              ),
             if (canDeleteTasks)
               IconButton(
                 onPressed: () {

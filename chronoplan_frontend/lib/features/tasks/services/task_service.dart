@@ -61,6 +61,31 @@ class TaskService {
     return TaskModel.fromJson(response.data);
   }
 
+  Future<TaskModel> updateTask({
+    required int taskId,
+    required String title,
+    required String? description,
+    required int? assigneeId,
+  }) async {
+    final token = await _getToken();
+
+    final response = await _dio.patch(
+      '/tasks/$taskId',
+      data: {
+        'title': title,
+        'description': description,
+        'assigneeId': assigneeId,
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return TaskModel.fromJson(response.data);
+  }
+
   Future<TaskModel> updateTaskStatus({
     required int taskId,
     required String status,
