@@ -164,26 +164,34 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: events.length,
               itemBuilder: (context, index) {
                 final event = events[index];
+                final isPast = event.date.isBefore(DateTime.now());
 
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Colors.blue,
+                    leading: CircleAvatar(
+                      backgroundColor: isPast ? Colors.grey : Colors.blue,
                       foregroundColor: Colors.white,
-                      child: Icon(Icons.event),
+                      child: Icon(
+                        isPast ? Icons.event_busy : Icons.event,
+                      ),
                     ),
                     title: Text(
                       event.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
+                        color: isPast ? Colors.grey : null,
                       ),
                     ),
                     subtitle: Text(
-                      '${event.description ?? 'Brak opisu'}\n${formatDate(event.date)}',
+                      '${event.description?.isNotEmpty == true ? event.description! : 'Brak opisu'}\n'
+                      '${formatDate(event.date)}',
                     ),
                     isThreeLine: true,
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: isPast
+                        ? const Chip(
+                            label: Text('Zakończone'),
+                          )
+                        : const Icon(Icons.chevron_right),
                     onTap: () {
                       context.push('/events/${event.id}');
                     },
