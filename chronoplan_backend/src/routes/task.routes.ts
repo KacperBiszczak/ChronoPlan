@@ -5,6 +5,7 @@ import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import {
   createTaskSchema,
+  updateTaskSchema,
   updateTaskStatusSchema,
 } from "../validators/task.validator";
 
@@ -166,6 +167,153 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
 
     res.json(tasks);
 });
+
+/**
+ * @swagger
+ * /tasks/{id}:
+ *   patch:
+ *     summary: Edytuje zadanie
+ *     description: Pozwala organizatorowi wydarzenia edytować tytuł, opis oraz osobę odpowiedzialną za zadanie.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID zadania
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Zamówić catering
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *                 example: Skontaktować się z firmą cateringową
+ *               assigneeId:
+ *                 type: integer
+ *                 nullable: true
+ *                 example: 2
+ *     responses:
+ *       200:
+ *         description: Zadanie zostało zaktualizowane
+ *       400:
+ *         description: Nieprawidłowe dane
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak uprawnień
+ *       404:
+ *         description: Nie znaleziono zadania
+ */
+router.patch(
+  "/:id",
+  authMiddleware,
+  validateBody(updateTaskSchema),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = Number(user?.userId);
+      const id = Number(req.params.id);
+
+      if (!userId) {
+        res.status(401).json({
+          message: "Brak autoryzacji",
+        });
+        return;
+      }
+
+      if (!id) {
+        res.status(400).json({
+          message: "Nieprawidłowe ID zadania",
+        });
+        return;
+      }
+
+      const task = await prisma.task.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          event: true,
+        },
+      });
+
+      if (!task) {
+        res.status(404).json({
+          message: "Nie znaleziono zadania",
+        });
+        return;
+      }
+
+      const organizerEvent = await isEventOrganizer(task.eventId, userId);
+
+      if (!organizerEvent) {
+        res.status(403).json({
+          message: "Tylko organizator może edytować zadania",
+        });
+        return;
+      }
+
+      const { title, description, assigneeId } = req.body;
+
+      if (assigneeId) {
+        const participant = await prisma.eventParticipant.findFirst({
+          where: {
+            eventId: task.eventId,
+            userId: assigneeId,
+            status: "ACCEPTED",
+          },
+        });
+
+        if (!participant) {
+          res.status(400).json({
+            message:
+              "Wybrany użytkownik nie jest zaakceptowanym uczestnikiem wydarzenia",
+          });
+          return;
+        }
+      }
+
+      const data = {
+        ...(title !== undefined ? { title } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(assigneeId !== undefined ? { assigneeId } : {}),
+      };
+
+      const updatedTask = await prisma.task.update({
+        where: {
+          id,
+        },
+        data,
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      res.json(updatedTask);
+    } catch {
+      res.status(500).json({
+        message: "Błąd edycji zadania",
+      });
+    }
+  }
+);
 
 /**
  * @swagger

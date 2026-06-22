@@ -25,6 +25,12 @@ export const createTaskSchema = z.object({
     .nullable(),
 });
 
+export const updateTaskSchema = z.object({
+  title: z.string().min(1, "Tytuł zadania jest wymagany").optional(),
+  description: z.string().max(500).optional().nullable(),
+  assigneeId: z.number().int().positive().optional().nullable(),
+});
+
 export const updateTaskStatusSchema = z.object({
   status: z.enum(["TODO", "IN_PROGRESS", "DONE"], {
     message: "Status musi być jednym z: TODO, IN_PROGRESS, DONE",
