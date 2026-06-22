@@ -54,8 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('ChronoPlan'),
         actions: [
           IconButton(
-            onPressed: () {
-              context.push('/invitations');
+            onPressed: () async {
+              await context.push('/invitations');
+
+              if (!mounted) return;
+
+              refreshEvents();
             },
             icon: const Icon(Icons.mail_outline),
             tooltip: 'Moje zaproszenia',

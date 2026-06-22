@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
@@ -55,6 +56,11 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
           ),
         ),
       );
+
+      if (status == 'ACCEPTED') {
+        context.pop();
+      }
+      
     } on DioException catch (error) {
       if (!mounted) return;
 
