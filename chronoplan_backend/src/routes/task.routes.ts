@@ -48,14 +48,13 @@ router.post("/", authMiddleware, validateBody(createTaskSchema), async (req, res
             const user = (req as any).user;
             const { title, description, eventId, assigneeId } = req.body;
 
-            const event = await canAccessEvent(Number(eventId), user.userId);
+            const organizerEvent = await isEventOrganizer(eventId, user.userId);
 
-            if (!event) {
-                res.status(404).json({
-                    message: "Nie znaleziono wydarzenia",
-                });
-                
-                return;
+            if (!organizerEvent) {
+              res.status(403).json({
+                message: "Tylko organizator może dodawać zadania",
+              });
+              return;
             }
 
         if (assigneeId) {

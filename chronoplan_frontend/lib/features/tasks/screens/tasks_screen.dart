@@ -26,7 +26,7 @@ class _TasksScreenState extends State<TasksScreen> {
   final authService = AuthService();
   final participantService = ParticipantService();
 
-  bool canDeleteTasks = false;
+  bool canManageTasks = false;
 
   late Future<List<TaskModel>> tasksFuture;
 
@@ -618,7 +618,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 changeStatus(task, value);
               },
             ),
-            if (canDeleteTasks)
+            if (canManageTasks)
               IconButton(
                 onPressed: () {
                   showEditTaskDialog(task);
@@ -626,7 +626,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: 'Edytuj zadanie',
               ),
-            if (canDeleteTasks)
+            if (canManageTasks)
               IconButton(
                 onPressed: () {
                   deleteTask(task);
@@ -649,13 +649,13 @@ class _TasksScreenState extends State<TasksScreen> {
       if (!mounted) return;
 
       setState(() {
-        canDeleteTasks = event.creatorId == currentUser.id;
+        canManageTasks = event.creatorId == currentUser.id;
       });
     } catch (_) {
       if (!mounted) return;
 
       setState(() {
-        canDeleteTasks = false;
+        canManageTasks = false;
       });
     }
   }
@@ -666,10 +666,12 @@ class _TasksScreenState extends State<TasksScreen> {
       appBar: AppBar(
         title: const Text('Zadania'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: showCreateTaskDialog,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: canManageTasks
+          ? FloatingActionButton(
+              onPressed: showCreateTaskDialog,
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: refreshTasks,
         child: FutureBuilder<List<TaskModel>>(
