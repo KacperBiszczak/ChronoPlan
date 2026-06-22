@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../auth/services/auth_service.dart';
 import '../../events/services/event_service.dart';
+import '../../participants/models/participant_model.dart';
+import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 
@@ -22,6 +24,7 @@ class _TasksScreenState extends State<TasksScreen> {
   final taskService = TaskService();
   final eventService = EventService();
   final authService = AuthService();
+  final participantService = ParticipantService();
 
   bool canDeleteTasks = false;
 
@@ -164,6 +167,10 @@ class _TasksScreenState extends State<TasksScreen> {
     final descriptionController = TextEditingController();
 
     bool isLoading = false;
+    int? selectedAssigneeId;
+
+    final participantsFuture =
+        participantService.getParticipantsByEvent(widget.eventId);
 
     final created = await showDialog<bool>(
       context: context,
@@ -192,7 +199,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   title: title,
                   description: description.isEmpty ? null : description,
                   eventId: widget.eventId,
-                  assigneeId: null,
+                  assigneeId: selectedAssigneeId,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -250,6 +257,57 @@ class _TasksScreenState extends State<TasksScreen> {
                         labelText: 'Opis',
                         border: OutlineInputBorder(),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    FutureBuilder<List<ParticipantModel>>(
+                      future: participantsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const LinearProgressIndicator();
+                        }
+
+                        if (snapshot.hasError) {
+                          return const Text(
+                            'Nie udało się pobrać uczestników',
+                            style: TextStyle(color: Colors.red),
+                          );
+                        }
+
+                        final participants = (snapshot.data ?? [])
+                            .where((participant) =>
+                                participant.status == 'ACCEPTED' &&
+                                participant.user != null)
+                            .toList();
+
+                        return DropdownButtonFormField<int?>(
+                          initialValue: selectedAssigneeId,
+                          decoration: const InputDecoration(
+                            labelText: 'Osoba odpowiedzialna',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<int?>(
+                              value: null,
+                              child: Text('Nie przypisuj'),
+                            ),
+                            ...participants.map(
+                              (participant) => DropdownMenuItem<int?>(
+                                value: participant.userId,
+                                child: Text(
+                                  '${participant.user!.name} (${participant.user!.email})',
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: isLoading
+                              ? null
+                              : (value) {
+                                  setDialogState(() {
+                                    selectedAssigneeId = value;
+                                  });
+                                },
+                        );
+                      },
                     ),
                   ],
                 ),
