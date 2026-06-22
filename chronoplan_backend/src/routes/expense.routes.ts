@@ -40,13 +40,21 @@ const router = Router();
 router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, res) => {
   try {
     const user = (req as any).user;
+    const userId = Number(user?.userId);
     const { title, amount, eventId } = req.body;
 
-    const event = await canAccessEvent(Number(eventId), user.userId);
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
 
-    if (!event) {
-      res.status(404).json({
-        message: "Nie znaleziono wydarzenia",
+    const organizerEvent = await isEventOrganizer(eventId, userId);
+
+    if (!organizerEvent) {
+      res.status(403).json({
+        message: "Tylko organizator może dodawać wydatki",
       });
       return;
     }
@@ -54,15 +62,13 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
     const expense = await prisma.expense.create({
       data: {
         title,
-        amount: Number(amount),
-        eventId: Number(eventId),
+        amount,
+        eventId,
       },
     });
 
     res.status(201).json(expense);
-  } catch (error) {
-    console.error(error);
-
+  } catch {
     res.status(500).json({
       message: "Błąd dodawania wydatku",
     });
@@ -225,6 +231,15 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     });
     return;
   }
+
+  const organizerEvent = await isEventOrganizer(expense.eventId, user.userId);
+
+  if (!organizerEvent) {
+    res.status(403).json({
+      message: "Tylko organizator może usuwać wydatki",
+    });
+    return;
+}
 
   await prisma.expense.delete({
     where: {
