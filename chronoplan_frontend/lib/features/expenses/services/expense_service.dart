@@ -86,4 +86,27 @@ class ExpenseService {
       ),
     );
   }
+
+  Future<ExpenseModel> updateExpense({
+    required int id,
+    required String title,
+    required double amount,
+  }) async {
+    final token = await _getToken();
+
+    final response = await _dio.patch(
+      '/expenses/$id',
+      data: {
+        'title': title,
+        'amount': amount,
+      },
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    return ExpenseModel.fromJson(response.data);
+  }
 }

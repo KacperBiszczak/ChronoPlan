@@ -252,6 +252,147 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
+  Future<void> showEditExpenseDialog(ExpenseModel expense) async {
+    final titleController = TextEditingController(text: expense.title);
+    final amountController = TextEditingController(
+      text: expense.amount.toStringAsFixed(2),
+    );
+
+    bool isLoading = false;
+
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> updateExpense() async {
+              final title = titleController.text.trim();
+              final amountText = amountController.text.trim().replaceAll(',', '.');
+              final amount = double.tryParse(amountText);
+
+              if (title.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Podaj nazwę wydatku')),
+                );
+                return;
+              }
+
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Podaj poprawną kwotę')),
+                );
+                return;
+              }
+
+              setDialogState(() {
+                isLoading = true;
+              });
+
+              try {
+                await expenseService.updateExpense(
+                  id: expense.id,
+                  title: title,
+                  amount: amount,
+                );
+
+                if (!dialogContext.mounted) return;
+
+                Navigator.of(dialogContext).pop(true);
+              } on DioException catch (error) {
+                if (!dialogContext.mounted) return;
+
+                setDialogState(() {
+                  isLoading = false;
+                });
+
+                final message =
+                    error.response?.data['message'] ?? 'Błąd edycji wydatku';
+
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              } catch (_) {
+                if (!dialogContext.mounted) return;
+
+                setDialogState(() {
+                  isLoading = false;
+                });
+
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Nieoczekiwany błąd')),
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Edytuj wydatek'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nazwa wydatku',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Kwota',
+                        border: OutlineInputBorder(),
+                        suffixText: 'zł',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                  child: const Text('Anuluj'),
+                ),
+                FilledButton(
+                  onPressed: isLoading ? null : updateExpense,
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Zapisz'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    titleController.dispose();
+    amountController.dispose();
+
+    if (!mounted) return;
+
+    if (updated == true) {
+      await refreshExpenses();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Wydatek został zaktualizowany')),
+      );
+    }
+  }
+
   Widget buildSummaryCard() {
     return FutureBuilder<double>(
       future: summaryFuture,
@@ -308,13 +449,26 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(formatAmount(expense.amount)),
-        trailing: canManageExpenses
-          ? IconButton(
-          onPressed: () => deleteExpense(expense),
-          icon: const Icon(Icons.delete_outline),
-          color: Colors.red,
-          tooltip: 'Usuń',
-        ): null,
+      trailing: canManageExpenses
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    showEditExpenseDialog(expense);
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edytuj',
+                ),
+                IconButton(
+                  onPressed: () => deleteExpense(expense),
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red,
+                  tooltip: 'Usuń',
+                ),
+              ],
+            )
+          : null,
       ),
     );
   }
