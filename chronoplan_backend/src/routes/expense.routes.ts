@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { canAccessEvent } from "../lib/event-access";
+import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
-import { createExpenseSchema } from "../validators/expense.validator";
+import { createExpenseSchema, updateExpenseSchema } from "../validators/expense.validator";
 
 const router = Router();
 
@@ -236,5 +236,114 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     message: "Wydatek usunięty",
   });
 });
+
+/**
+ * @swagger
+ * /expenses/{id}:
+ *   patch:
+ *     summary: Edytuje wydatek
+ *     description: Pozwala organizatorowi wydarzenia edytować nazwę i kwotę wydatku.
+ *     tags:
+ *       - Expenses
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydatku
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Pizza
+ *               amount:
+ *                 type: number
+ *                 example: 120.50
+ *     responses:
+ *       200:
+ *         description: Wydatek został zaktualizowany
+ *       400:
+ *         description: Nieprawidłowe dane
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak uprawnień
+ *       404:
+ *         description: Nie znaleziono wydatku
+ */
+router.patch(
+  "/:id",
+  authMiddleware,
+  validateBody(updateExpenseSchema),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = Number(user?.userId);
+      const id = Number(req.params.id);
+
+      if (!userId) {
+        res.status(401).json({
+          message: "Brak autoryzacji",
+        });
+        return;
+      }
+
+      if (!id) {
+        res.status(400).json({
+          message: "Nieprawidłowe ID wydatku",
+        });
+        return;
+      }
+
+      const expense = await prisma.expense.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!expense) {
+        res.status(404).json({
+          message: "Nie znaleziono wydatku",
+        });
+        return;
+      }
+
+      const organizerEvent = await isEventOrganizer(expense.eventId, userId);
+
+      if (!organizerEvent) {
+        res.status(403).json({
+          message: "Tylko organizator może edytować wydatki",
+        });
+        return;
+      }
+
+      const { title, amount } = req.body;
+
+      const updatedExpense = await prisma.expense.update({
+        where: {
+          id,
+        },
+        data: {
+          ...(title !== undefined ? { title } : {}),
+          ...(amount !== undefined ? { amount } : {}),
+        },
+      });
+
+      res.json(updatedExpense);
+    } catch {
+      res.status(500).json({
+        message: "Błąd edycji wydatku",
+      });
+    }
+  }
+);
 
 export default router;
