@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 
+import '../../expenses/services/expense_service.dart';
+import '../../participants/services/participant_service.dart';
+import '../../tasks/services/task_service.dart';
 import '../models/event_model.dart';
 import '../services/event_service.dart';
 import 'package:go_router/go_router.dart';
@@ -21,15 +24,20 @@ class EventDetailsScreen extends StatefulWidget {
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final eventService = EventService();
   final authService = AuthService();
+  final taskService = TaskService();
+  final expenseService = ExpenseService();
+  final participantService = ParticipantService();
 
   int? currentUserId;
 
   late Future<EventModel> eventFuture;
+  late Future<EventSummaryData> summaryFuture;
 
   @override
   void initState() {
     super.initState();
     eventFuture = eventService.getEventById(widget.eventId);
+    summaryFuture = loadSummary();
     loadCurrentUser();
   }
 
@@ -45,10 +53,37 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
+  String formatAmount(double amount) {
+    return '${amount.toStringAsFixed(2)} zł';
+  }
+
   Future<void> refreshEvent() async {
     setState(() {
       eventFuture = eventService.getEventById(widget.eventId);
+      summaryFuture = loadSummary();
     });
+  }
+
+  Future<EventSummaryData> loadSummary() async {
+    final tasks = await taskService.getTasksByEvent(widget.eventId);
+    final totalExpenses = await expenseService.getExpenseSummary(widget.eventId);
+    final participants =
+        await participantService.getParticipantsByEvent(widget.eventId);
+
+    final todoTasks = tasks.where((task) => task.status == 'TODO').length;
+
+    final inProgressTasks =
+        tasks.where((task) => task.status == 'IN_PROGRESS').length;
+
+    final doneTasks = tasks.where((task) => task.status == 'DONE').length;
+
+    return EventSummaryData(
+      todoTasks: todoTasks,
+      inProgressTasks: inProgressTasks,
+      doneTasks: doneTasks,
+      totalExpenses: totalExpenses,
+      participantsCount: participants.length,
+    );
   }
 
   Future<void> loadCurrentUser() async {
@@ -153,6 +188,88 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         title: Text(title),
         subtitle: Text(value),
       ),
+    );
+  }
+
+  Widget buildModulesSection() {
+    return FutureBuilder<EventSummaryData>(
+      future: summaryFuture,
+      builder: (context, snapshot) {
+        final summary = snapshot.data;
+
+        final tasksText = summary == null
+            ? 'Ładowanie...'
+            : '${summary.todoTasks} do zrobienia, '
+                '${summary.inProgressTasks} w trakcie, '
+                '${summary.doneTasks} zrobione';
+
+        final expensesText = summary == null
+            ? 'Ładowanie...'
+            : 'Suma: ${formatAmount(summary.totalExpenses)}';
+
+        final participantsText = summary == null
+            ? 'Ładowanie...'
+            : '${summary.participantsCount} ${summary.participantsCount == 1 ? "osoba" : (summary.participantsCount <= 4 ? "osoby" : "osób")} w wydarzeniu';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Moduły wydarzenia',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.checklist, color: Colors.blue),
+                title: const Text('Zadania'),
+                subtitle: Text(tasksText),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/events/${widget.eventId}/tasks');
+
+                  if (!mounted) return;
+
+                  refreshEvent();
+                },
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.payments, color: Colors.blue),
+                title: const Text('Budżet'),
+                subtitle: Text(expensesText),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/events/${widget.eventId}/expenses');
+
+                  if (!mounted) return;
+
+                  refreshEvent();
+                },
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.group, color: Colors.blue),
+                title: const Text('Uczestnicy'),
+                subtitle: Text(participantsText),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/events/${widget.eventId}/participants');
+
+                  if (!mounted) return;
+
+                  refreshEvent();
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -277,47 +394,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       value: formatTime(event.date),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Moduły wydarzenia',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.checklist, color: Colors.blue),
-                        title: const Text('Zadania'),
-                        subtitle: const Text('Lista zadań wydarzenia'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          context.push('/events/${widget.eventId}/tasks');
-                        },
-                      ),
-                    ),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.payments, color: Colors.blue),
-                        title: const Text('Budżet'),
-                        subtitle: const Text('Wydatki i podsumowanie kosztów'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          context.push('/events/${widget.eventId}/expenses');
-                        },
-                      ),
-                    ),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.group, color: Colors.blue),
-                        title: const Text('Uczestnicy'),
-                        subtitle: const Text('Zaproszenia i lista osób'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          context.push('/events/${widget.eventId}/participants');
-                        },
-                      ),
-                    ),
+                    buildModulesSection(),
                   ],
                 );
               },
@@ -327,4 +404,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       },
     );
   }
+}
+
+class EventSummaryData {
+  final int todoTasks;
+  final int inProgressTasks;
+  final int doneTasks;
+  final double totalExpenses;
+  final int participantsCount;
+
+  EventSummaryData({
+    required this.todoTasks,
+    required this.inProgressTasks,
+    required this.doneTasks,
+    required this.totalExpenses,
+    required this.participantsCount,
+  });
 }

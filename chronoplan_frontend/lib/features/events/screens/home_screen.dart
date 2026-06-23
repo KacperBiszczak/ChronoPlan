@@ -47,6 +47,56 @@ class _HomeScreenState extends State<HomeScreen> {
         '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
+  Widget buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget buildEventCard(EventModel event) {
+    final isPast = event.date.isBefore(DateTime.now());
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isPast ? Colors.grey : Colors.blue,
+          foregroundColor: Colors.white,
+          child: Icon(
+            isPast ? Icons.event_busy : Icons.event,
+          ),
+        ),
+        title: Text(
+          event.title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isPast ? Colors.grey : null,
+          ),
+        ),
+        subtitle: Text(
+          '${event.description?.isNotEmpty == true ? event.description! : 'Brak opisu'}\n'
+          '${formatDate(event.date)}',
+        ),
+        isThreeLine: true,
+        trailing: isPast
+            ? const Chip(
+                label: Text('Zakończone'),
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: () {
+          context.push('/events/${event.id}');
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,45 +209,29 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                final event = events[index];
-                final isPast = event.date.isBefore(DateTime.now());
+            final now = DateTime.now();
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isPast ? Colors.grey : Colors.blue,
-                      foregroundColor: Colors.white,
-                      child: Icon(
-                        isPast ? Icons.event_busy : Icons.event,
-                      ),
-                    ),
-                    title: Text(
-                      event.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isPast ? Colors.grey : null,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${event.description?.isNotEmpty == true ? event.description! : 'Brak opisu'}\n'
-                      '${formatDate(event.date)}',
-                    ),
-                    isThreeLine: true,
-                    trailing: isPast
-                        ? const Chip(
-                            label: Text('Zakończone'),
-                          )
-                        : const Icon(Icons.chevron_right),
-                    onTap: () {
-                      context.push('/events/${event.id}');
-                    },
-                  ),
-                );
-              },
+            final upcomingEvents = events
+                .where((event) => !event.date.isBefore(now))
+                .toList();
+
+            final pastEvents = events
+                .where((event) => event.date.isBefore(now))
+                .toList();
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (upcomingEvents.isNotEmpty) ...[
+                  buildSectionTitle('Nadchodzące'),
+                  ...upcomingEvents.map(buildEventCard),
+                ],
+                if (pastEvents.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  buildSectionTitle('Zakończone'),
+                  ...pastEvents.map(buildEventCard),
+                ],
+              ],
             );
           },
         ),
