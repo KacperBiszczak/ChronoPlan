@@ -195,31 +195,46 @@ router.get("/my", authMiddleware, async (req, res) => {
       return;
     }
 
-    const tasks = await prisma.task.findMany({
-      where: {
-        assigneeId: userId,
-      },
-      include: {
-        event: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            date: true,
+  const tasks = await prisma.task.findMany({
+    where: {
+      assigneeId: userId,
+      event: {
+        OR: [
+          {
+            creatorId: userId,
           },
-        },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+          {
+            participants: {
+              some: {
+                userId,
+                status: "ACCEPTED",
+              },
+            },
           },
+        ],
+      },
+    },
+    include: {
+      event: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          date: true,
         },
       },
-      orderBy: {
-        createdAt: "desc",
+      assignee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
       },
-    });
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
     res.json(tasks);
   } catch {
