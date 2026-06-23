@@ -433,11 +433,22 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       return;
     }
 
-    await prisma.eventParticipant.delete({
-      where: {
-        id,
-      },
-    });
+    await prisma.$transaction([
+      prisma.task.updateMany({
+        where: {
+          eventId: participant.eventId,
+          assigneeId: participant.userId,
+        },
+        data: {
+          assigneeId: null,
+        },
+      }),
+      prisma.eventParticipant.delete({
+        where: {
+          id,
+        },
+      }),
+    ]);
 
     res.json({
       message: "Uczestnik został usunięty",
