@@ -35,6 +35,23 @@ class TaskService {
     return data.map((item) => TaskModel.fromJson(item)).toList();
   }
 
+  Future<List<TaskModel>> getMyTasks() async {
+    final token = await _getToken();
+
+    final response = await _dio.get(
+      '/tasks/my',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+
+    final data = response.data as List;
+
+    return data.map((item) => TaskModel.fromJson(item)).toList();
+  }
+
   Future<TaskModel> createTask({
     required String title,
     required String? description,

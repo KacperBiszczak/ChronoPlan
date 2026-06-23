@@ -1,0 +1,244 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../models/task_model.dart';
+import '../services/task_service.dart';
+
+class MyTasksScreen extends StatefulWidget {
+  const MyTasksScreen({super.key});
+
+  @override
+  State<MyTasksScreen> createState() => _MyTasksScreenState();
+}
+
+class _MyTasksScreenState extends State<MyTasksScreen> {
+  final taskService = TaskService();
+
+  late Future<List<TaskModel>> tasksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    tasksFuture = taskService.getMyTasks();
+  }
+
+  Future<void> refreshTasks() async {
+    setState(() {
+      tasksFuture = taskService.getMyTasks();
+    });
+  }
+
+  String twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
+  String formatDate(DateTime date) {
+    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year} '
+        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
+  }
+
+  String getStatusLabel(String status) {
+    switch (status) {
+      case 'TODO':
+        return 'Do zrobienia';
+      case 'IN_PROGRESS':
+        return 'W trakcie';
+      case 'DONE':
+        return 'Zrobione';
+      default:
+        return status;
+    }
+  }
+
+  IconData getStatusIcon(String status) {
+    switch (status) {
+      case 'TODO':
+        return Icons.radio_button_unchecked;
+      case 'IN_PROGRESS':
+        return Icons.timelapse;
+      case 'DONE':
+        return Icons.check_circle;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  Future<void> changeStatus(TaskModel task, String status) async {
+    try {
+      await taskService.updateTaskStatus(
+        taskId: task.id,
+        status: status,
+      );
+
+      await refreshTasks();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status zadania został zmieniony'),
+        ),
+      );
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message =
+          error.response?.data['message'] ?? 'Błąd zmiany statusu zadania';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nieoczekiwany błąd')),
+      );
+    }
+  }
+
+  Widget buildTaskCard(TaskModel task) {
+    final event = task.event;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          child: Icon(getStatusIcon(task.status)),
+        ),
+        title: Text(
+          task.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          '${task.description?.isNotEmpty == true ? task.description! : 'Brak opisu'}\n'
+          'Wydarzenie: ${event?.title ?? '-'}\n'
+          'Data: ${event != null ? formatDate(event.date) : '-'}',
+        ),
+        isThreeLine: true,
+        trailing: DropdownButton<String>(
+          value: task.status,
+          items: const [
+            DropdownMenuItem(
+              value: 'TODO',
+              child: Text('Do zrobienia'),
+            ),
+            DropdownMenuItem(
+              value: 'IN_PROGRESS',
+              child: Text('W trakcie'),
+            ),
+            DropdownMenuItem(
+              value: 'DONE',
+              child: Text('Zrobione'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == null || value == task.status) return;
+
+            changeStatus(task, value);
+          },
+        ),
+        onTap: event == null
+            ? null
+            : () {
+                context.push('/events/${event.id}');
+              },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Moje zadania'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: refreshTasks,
+        child: FutureBuilder<List<TaskModel>>(
+          future: tasksFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 56,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nie udało się pobrać Twoich zadań',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: refreshTasks,
+                    child: const Text('Spróbuj ponownie'),
+                  ),
+                ],
+              );
+            }
+
+            final tasks = snapshot.data ?? [];
+
+            if (tasks.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: const [
+                  SizedBox(height: 100),
+                  Icon(
+                    Icons.assignment_outlined,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Brak przypisanych zadań',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tutaj pojawią się zadania przypisane bezpośrednio do Ciebie.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: tasks.length,
+              itemBuilder: (context, index) {
+                return buildTaskCard(tasks[index]);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}

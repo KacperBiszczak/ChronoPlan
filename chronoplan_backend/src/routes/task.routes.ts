@@ -169,6 +169,68 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
 
 /**
  * @swagger
+ * /tasks/my:
+ *   get:
+ *     summary: Pobiera zadania przypisane do zalogowanego użytkownika
+ *     description: Zwraca listę zadań, w których aktualnie zalogowany użytkownik jest osobą odpowiedzialną.
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista przypisanych zadań
+ *       401:
+ *         description: Brak autoryzacji
+ */
+router.get("/my", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    const tasks = await prisma.task.findMany({
+      where: {
+        assigneeId: userId,
+      },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            date: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json(tasks);
+  } catch {
+    res.status(500).json({
+      message: "Błąd pobierania przypisanych zadań",
+    });
+  }
+});
+
+/**
+ * @swagger
  * /tasks/{id}:
  *   patch:
  *     summary: Edytuje zadanie

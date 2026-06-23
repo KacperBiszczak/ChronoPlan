@@ -104,6 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('ChronoPlan'),
         actions: [
           IconButton(
+            onPressed: () {
+              context.push('/my-tasks');
+            },
+            icon: const Icon(Icons.assignment_outlined),
+            tooltip: 'Moje zadania',
+          ),
+          IconButton(
             onPressed: () async {
               await context.push('/invitations');
 

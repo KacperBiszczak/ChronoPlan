@@ -7,6 +7,7 @@ import '../../features/events/screens/home_screen.dart';
 import '../../features/events/screens/create_event_screen.dart';
 import '../../features/events/screens/event_details_screen.dart';
 import '../../features/tasks/screens/tasks_screen.dart';
+import '../../features/tasks/screens/my_tasks_screen.dart';
 import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/participants/screens/participants_screen.dart';
 import '../../features/participants/screens/my_invitations_screen.dart';
@@ -58,6 +59,10 @@ final appRouter = GoRouter(
 
         return TasksScreen(eventId: id);
       },
+    ),
+    GoRoute(
+      path: '/my-tasks',
+      builder: (context, state) => const MyTasksScreen(),
     ),
     GoRoute(
       path: '/events/:id/expenses',
