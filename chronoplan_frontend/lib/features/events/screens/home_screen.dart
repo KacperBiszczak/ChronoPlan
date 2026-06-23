@@ -15,8 +15,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final eventService = EventService();
   final authService = AuthService();
+  
+  final searchController = TextEditingController();
+
+  String searchQuery = '';
 
   late Future<List<EventModel>> eventsFuture;
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -57,6 +67,38 @@ class _HomeScreenState extends State<HomeScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  Widget buildSearchField() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Szukaj wydarzenia...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value.trim().toLowerCase();
+        });
+      },
     );
   }
 
@@ -185,6 +227,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final events = snapshot.data ?? [];
 
+            final filteredEvents = events.where((event) {
+              final title = event.title.toLowerCase();
+              final description = event.description?.toLowerCase() ?? '';
+
+              return title.contains(searchQuery) || description.contains(searchQuery);
+            }).toList();
+
             if (events.isEmpty) {
               return ListView(
                 children: const [
@@ -218,21 +267,48 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final now = DateTime.now();
 
-            final upcomingEvents = events
+            final upcomingEvents = filteredEvents
                 .where((event) => !event.date.isBefore(now))
                 .toList();
 
-            final pastEvents = events
+            final pastEvents = filteredEvents
                 .where((event) => event.date.isBefore(now))
                 .toList();
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                buildSearchField(),
+                const SizedBox(height: 16),
+
+                if (filteredEvents.isEmpty) ...[
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.search_off,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Brak wyników',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Nie znaleziono wydarzeń pasujących do wyszukiwania.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
                 if (upcomingEvents.isNotEmpty) ...[
                   buildSectionTitle('Nadchodzące'),
                   ...upcomingEvents.map(buildEventCard),
                 ],
+
                 if (pastEvents.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   buildSectionTitle('Zakończone'),
