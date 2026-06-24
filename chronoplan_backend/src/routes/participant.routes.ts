@@ -349,6 +349,101 @@ router.patch("/:id/status", authMiddleware, validateBody(updateParticipantStatus
 
 /**
  * @swagger
+ * /participants/event/{eventId}/leave:
+ *   delete:
+ *     summary: Opuszcza wydarzenie
+ *     description: Pozwala zalogowanemu uczestnikowi opuścić wydarzenie. Organizator nie może opuścić własnego wydarzenia.
+ *     tags:
+ *       - Participants
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Użytkownik opuścił wydarzenie
+ *       400:
+ *         description: Nieprawidłowe ID lub próba opuszczenia wydarzenia przez organizatora
+ *       401:
+ *         description: Brak autoryzacji
+ *       404:
+ *         description: Nie znaleziono uczestnictwa
+ */
+router.delete("/event/:eventId/leave", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const participant = await prisma.eventParticipant.findFirst({
+      where: {
+        eventId,
+        userId,
+      },
+    });
+
+    if (!participant) {
+      res.status(404).json({
+        message: "Nie jesteś uczestnikiem tego wydarzenia",
+      });
+      return;
+    }
+
+    if (participant.role === "ORGANIZER") {
+      res.status(400).json({
+        message: "Organizator nie może opuścić własnego wydarzenia",
+      });
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.task.updateMany({
+        where: {
+          eventId,
+          assigneeId: userId,
+        },
+        data: {
+          assigneeId: null,
+        },
+      }),
+      prisma.eventParticipant.delete({
+        where: {
+          id: participant.id,
+        },
+      }),
+    ]);
+
+    res.json({
+      message: "Opuściłeś wydarzenie",
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd opuszczania wydarzenia",
+    });
+  }
+});
+
+/**
+ * @swagger
  * /participants/{id}:
  *   delete:
  *     summary: Usuwa uczestnika z wydarzenia

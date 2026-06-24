@@ -107,4 +107,17 @@ class ParticipantService {
       ),
     );
   }
+
+  Future<void> leaveEvent(int eventId) async {
+    final token = await _getToken();
+
+    await _dio.delete(
+      '/participants/event/$eventId/leave',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
 }

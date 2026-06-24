@@ -108,6 +108,71 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return currentUserId != null && event.creatorId == currentUserId;
   }
 
+  Future<void> leaveEvent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Opuść wydarzenie'),
+          content: const Text(
+            'Czy na pewno chcesz opuścić to wydarzenie? Przestanie być widoczne na Twojej liście.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Opuść'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (confirmed != true) return;
+
+    try {
+      await participantService.leaveEvent(widget.eventId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opuściłeś wydarzenie'),
+        ),
+      );
+
+      context.go('/home');
+    } on DioException catch (error) {
+      if (!mounted) return;
+
+      final message =
+          error.response?.data['message'] ?? 'Błąd opuszczania wydarzenia';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nieoczekiwany błąd'),
+        ),
+      );
+    }
+  }
+
   Future<void> deleteEvent() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -306,6 +371,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   tooltip: 'Usuń wydarzenie',
                 ),
               ],
+              if (event != null && !isOrganizer(event))
+                IconButton(
+                  onPressed: leaveEvent,
+                  icon: const Icon(Icons.exit_to_app),
+                  tooltip: 'Opuść wydarzenie',
+                ),
             ],
           ),
           body: RefreshIndicator(
