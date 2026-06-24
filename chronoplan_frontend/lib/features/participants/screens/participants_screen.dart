@@ -5,6 +5,13 @@ import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
 
+enum ParticipantFilter {
+  all,
+  invited,
+  accepted,
+  declined,
+}
+
 class ParticipantsScreenData {
   final List<ParticipantModel> participants;
   final bool canInvite;
@@ -31,12 +38,54 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final participantService = ParticipantService();
   final authService = AuthService();
 
+  final searchController = TextEditingController();
+
+  String searchQuery = '';
+  ParticipantFilter selectedFilter = ParticipantFilter.all;
+
   late Future<ParticipantsScreenData> participantsFuture;
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
     participantsFuture = loadParticipantsData();
+  }
+
+  List<ParticipantModel> filterParticipants(List<ParticipantModel> participants) {
+    final searchFilteredParticipants = participants.where((participant) {
+      final name = participant.user?.name.toLowerCase() ?? '';
+      final email = participant.user?.email.toLowerCase() ?? '';
+      final role = getRoleLabel(participant.role).toLowerCase();
+      final status = getStatusLabel(participant.status).toLowerCase();
+
+      return name.contains(searchQuery) ||
+          email.contains(searchQuery) ||
+          role.contains(searchQuery) ||
+          status.contains(searchQuery);
+    }).toList();
+
+    switch (selectedFilter) {
+      case ParticipantFilter.all:
+        return searchFilteredParticipants;
+      case ParticipantFilter.invited:
+        return searchFilteredParticipants
+            .where((participant) => participant.status == 'INVITED')
+            .toList();
+      case ParticipantFilter.accepted:
+        return searchFilteredParticipants
+            .where((participant) => participant.status == 'ACCEPTED')
+            .toList();
+      case ParticipantFilter.declined:
+        return searchFilteredParticipants
+            .where((participant) => participant.status == 'DECLINED')
+            .toList();
+    }
   }
 
   Future<ParticipantsScreenData> loadParticipantsData() async {
@@ -286,6 +335,83 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     }
   }
 
+  Widget buildSearchField() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Szukaj uczestnika...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value.trim().toLowerCase();
+        });
+      },
+    );
+  }
+
+  Widget buildFilterSelector() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ChoiceChip(
+          label: const Text('Wszyscy'),
+          selected: selectedFilter == ParticipantFilter.all,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = ParticipantFilter.all;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Zaproszeni'),
+          selected: selectedFilter == ParticipantFilter.invited,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = ParticipantFilter.invited;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Zaakceptowani'),
+          selected: selectedFilter == ParticipantFilter.accepted,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = ParticipantFilter.accepted;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Odrzuceni'),
+          selected: selectedFilter == ParticipantFilter.declined,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = ParticipantFilter.declined;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
   Widget buildParticipantCard(ParticipantModel participant, bool canManageParticipants) {
     final user = participant.user;
     final canDeleteParticipant =
@@ -371,7 +497,10 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     );
   }
 
-  Widget buildParticipantsBody(List<ParticipantModel> participants, bool canManageParticipants) {
+  Widget buildParticipantsBody(
+    List<ParticipantModel> participants,
+    bool canManageParticipants,
+  ) {
     if (participants.isEmpty) {
       return RefreshIndicator(
         onRefresh: refreshParticipants,
@@ -403,14 +532,48 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
       );
     }
 
+    final filteredParticipants = filterParticipants(participants);
+
     return RefreshIndicator(
       onRefresh: refreshParticipants,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        itemCount: participants.length,
-        itemBuilder: (context, index) {
-          return buildParticipantCard(participants[index], canManageParticipants);
-        },
+        children: [
+          buildSearchField(),
+          const SizedBox(height: 16),
+          buildFilterSelector(),
+          const SizedBox(height: 16),
+
+          if (filteredParticipants.isEmpty) ...[
+            const SizedBox(height: 80),
+            const Icon(
+              Icons.search_off,
+              size: 56,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Brak wyników',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Nie znaleziono uczestników pasujących do wybranych filtrów.',
+              textAlign: TextAlign.center,
+            ),
+          ] else ...[
+            ...filteredParticipants.map(
+              (participant) => buildParticipantCard(
+                participant,
+                canManageParticipants,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
