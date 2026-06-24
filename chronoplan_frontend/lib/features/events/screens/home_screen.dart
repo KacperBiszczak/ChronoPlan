@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int myActiveTasksCount = 0;
   int invitationsCount = 0;
+  int? currentUserId;
   
   final searchController = TextEditingController();
 
@@ -47,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     eventsFuture = eventService.getEvents();
     loadCounters();
+    loadCurrentUser();
   }
 
   Future<void> refreshEvents() async {
@@ -55,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
       
     await loadCounters();
+    await loadCurrentUser();
   }
 
   Future<void> logout() async {
@@ -147,41 +150,158 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget buildEventBadge({
+    required String label,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildEventCard(EventModel event) {
     final isPast = event.date.isBefore(DateTime.now());
+    final isOrganizer =
+        currentUserId != null && event.creatorId == currentUserId;
+
+    final roleColor = isOrganizer ? Colors.blue : Colors.green;
+    // final leadingColor = isPast ? Colors.grey : roleColor;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isPast ? Colors.grey : Colors.blue,
-          foregroundColor: Colors.white,
-          child: Icon(
-            isPast ? Icons.event_busy : Icons.event,
-          ),
-        ),
-        title: Text(
-          event.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isPast ? Colors.grey : null,
-          ),
-        ),
-        subtitle: Text(
-          '${event.description?.isNotEmpty == true ? event.description! : 'Brak opisu'}\n'
-          '${formatDate(event.date)}',
-        ),
-        isThreeLine: true,
-        trailing: isPast
-            ? const Chip(
-                label: Text('Zakończone'),
-              )
-            : const Icon(Icons.chevron_right),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           context.push('/events/${event.id}');
         },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                child: Icon(
+                  isPast ? Icons.event_busy : Icons.event,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isPast ? Colors.grey[700] : null,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      event.description?.isNotEmpty == true
+                          ? event.description!
+                          : 'Brak opisu',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isPast ? Colors.grey[600] : null,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: isPast ? Colors.grey : Colors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatDate(event.date),
+                          style: TextStyle(
+                            color: isPast ? Colors.grey[700] : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        buildEventBadge(
+                          label: isOrganizer ? 'Organizator' : 'Uczestnik',
+                          color: roleColor,
+                          icon: isOrganizer
+                              ? Icons.admin_panel_settings
+                              : Icons.person,
+                        ),
+                        if (isPast)
+                          buildEventBadge(
+                            label: 'Zakończone',
+                            color: Colors.grey,
+                            icon: Icons.event_busy,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  Future<void> loadCurrentUser() async {
+    try {
+      final user = await authService.getCurrentUser();
+
+      if (!mounted) return;
+
+      setState(() {
+        currentUserId = user.id;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        currentUserId = null;
+      });
+    }
   }
 
   Future<void> loadCounters() async {
@@ -229,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 minHeight: 18,
               ),
               child: Text(
-                count > 99 ? '99+' : count.toString(),
+                count > 99 ? '+99' : count.toString(),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
@@ -258,6 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
               refreshEvents();
             },
             icon: buildIconWithBadge(
+              
               icon: Icons.assignment_outlined,
               count: myActiveTasksCount,
             ),
