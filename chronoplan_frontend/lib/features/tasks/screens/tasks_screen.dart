@@ -8,6 +8,13 @@ import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 
+enum TaskFilter {
+  all,
+  todo,
+  inProgress,
+  done,
+}
+
 class TasksScreen extends StatefulWidget {
   final int eventId;
 
@@ -26,9 +33,51 @@ class _TasksScreenState extends State<TasksScreen> {
   final authService = AuthService();
   final participantService = ParticipantService();
 
+  final searchController = TextEditingController();
+
+  String searchQuery = '';
+  TaskFilter selectedFilter = TaskFilter.all;
+
   bool canManageTasks = false;
 
   late Future<List<TaskModel>> tasksFuture;
+
+  List<TaskModel> filterTasks(List<TaskModel> tasks) {
+    final searchFilteredTasks = tasks.where((task) {
+      final title = task.title.toLowerCase();
+      final description = task.description?.toLowerCase() ?? '';
+      final assigneeName = task.assignee?.name.toLowerCase() ?? '';
+      final assigneeEmail = task.assignee?.email.toLowerCase() ?? '';
+
+      return title.contains(searchQuery) ||
+          description.contains(searchQuery) ||
+          assigneeName.contains(searchQuery) ||
+          assigneeEmail.contains(searchQuery);
+    }).toList();
+
+    switch (selectedFilter) {
+      case TaskFilter.all:
+        return searchFilteredTasks;
+      case TaskFilter.todo:
+        return searchFilteredTasks
+            .where((task) => task.status == 'TODO')
+            .toList();
+      case TaskFilter.inProgress:
+        return searchFilteredTasks
+            .where((task) => task.status == 'IN_PROGRESS')
+            .toList();
+      case TaskFilter.done:
+        return searchFilteredTasks
+            .where((task) => task.status == 'DONE')
+            .toList();
+    }
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -196,7 +245,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             .toList();
 
                         return DropdownButtonFormField<int?>(
-                          value: selectedAssigneeId,
+                          initialValue: selectedAssigneeId,
                           decoration: const InputDecoration(
                             labelText: 'Osoba odpowiedzialna',
                             border: OutlineInputBorder(),
@@ -270,6 +319,83 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
       );
     }
+  }
+
+  Widget buildSearchField() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Szukaj zadania...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value.trim().toLowerCase();
+        });
+      },
+    );
+  }
+
+  Widget buildFilterSelector() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ChoiceChip(
+          label: const Text('Wszystkie'),
+          selected: selectedFilter == TaskFilter.all,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = TaskFilter.all;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Do zrobienia'),
+          selected: selectedFilter == TaskFilter.todo,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = TaskFilter.todo;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('W trakcie'),
+          selected: selectedFilter == TaskFilter.inProgress,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = TaskFilter.inProgress;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Zrobione'),
+          selected: selectedFilter == TaskFilter.done,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = TaskFilter.done;
+            });
+          },
+        ),
+      ],
+    );
   }
 
   Future<void> changeStatus(TaskModel task, String status) async {
@@ -741,12 +867,41 @@ class _TasksScreenState extends State<TasksScreen> {
               );
             }
 
-            return ListView.builder(
+            final filteredTasks = filterTasks(tasks);
+
+            return ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                return buildTaskCard(tasks[index]);
-              },
+              children: [
+                buildSearchField(),
+                const SizedBox(height: 16),
+                buildFilterSelector(),
+                const SizedBox(height: 16),
+
+                if (filteredTasks.isEmpty) ...[
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.search_off,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Brak wyników',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Nie znaleziono zadań pasujących do wybranych filtrów.',
+                    textAlign: TextAlign.center,
+                  ),
+                ] else ...[
+                  ...filteredTasks.map(buildTaskCard),
+                ],
+              ],
             );
           },
         ),
