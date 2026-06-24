@@ -6,6 +6,13 @@ import '../../events/services/event_service.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
 
+enum ExpenseSort {
+  defaultOrder,
+  amountAsc,
+  amountDesc,
+  titleAsc,
+}
+
 class ExpensesScreen extends StatefulWidget {
   final int eventId;
 
@@ -23,10 +30,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final eventService = EventService();
   final authService = AuthService();
 
+  final searchController = TextEditingController();
+
+  String searchQuery = '';
+  ExpenseSort selectedSort = ExpenseSort.defaultOrder;
+
   bool canManageExpenses = false;
 
   late Future<List<ExpenseModel>> expensesFuture;
   late Future<double> summaryFuture;
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -54,6 +72,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       expenses,
       summary,
     ]);
+  }
+
+  List<ExpenseModel> filterAndSortExpenses(List<ExpenseModel> expenses) {
+    final filteredExpenses = expenses.where((expense) {
+      final title = expense.title.toLowerCase();
+      final amount = expense.amount.toStringAsFixed(2);
+
+      return title.contains(searchQuery) || amount.contains(searchQuery);
+    }).toList();
+
+    switch (selectedSort) {
+      case ExpenseSort.defaultOrder:
+        return filteredExpenses;
+      case ExpenseSort.amountAsc:
+        filteredExpenses.sort((a, b) => a.amount.compareTo(b.amount));
+        return filteredExpenses;
+      case ExpenseSort.amountDesc:
+        filteredExpenses.sort((a, b) => b.amount.compareTo(a.amount));
+        return filteredExpenses;
+      case ExpenseSort.titleAsc:
+        filteredExpenses.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+        return filteredExpenses;
+    }
   }
 
   String formatAmount(double amount) {
@@ -393,6 +436,77 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
+  Widget buildSearchField() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Szukaj wydatku...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value.trim().toLowerCase();
+        });
+      },
+    );
+  }
+
+  Widget buildSortSelector() {
+    return DropdownButtonFormField<ExpenseSort>(
+      initialValue: selectedSort,
+      decoration: InputDecoration(
+        labelText: 'Sortowanie',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      items: const [
+        DropdownMenuItem(
+          value: ExpenseSort.defaultOrder,
+          child: Text('Domyślnie'),
+        ),
+        DropdownMenuItem(
+          value: ExpenseSort.amountAsc,
+          child: Text('Kwota rosnąco'),
+        ),
+        DropdownMenuItem(
+          value: ExpenseSort.amountDesc,
+          child: Text('Kwota malejąco'),
+        ),
+        DropdownMenuItem(
+          value: ExpenseSort.titleAsc,
+          child: Text('Nazwa A-Z'),
+        ),
+      ],
+      onChanged: (value) {
+        if (value == null) return;
+
+        setState(() {
+          selectedSort = value;
+        });
+      },
+    );
+  }
+
   Widget buildSummaryCard() {
     return FutureBuilder<double>(
       future: summaryFuture,
@@ -543,12 +657,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             }
 
             final expenses = snapshot.data ?? [];
+            final filteredExpenses = filterAndSortExpenses(expenses);
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 buildSummaryCard(),
                 const SizedBox(height: 16),
+
+                if (expenses.isNotEmpty) ...[
+                  buildSearchField(),
+                  const SizedBox(height: 16),
+                  buildSortSelector(),
+                  const SizedBox(height: 16),
+                ],
+
                 if (expenses.isEmpty) ...[
                   const SizedBox(height: 80),
                   const Icon(
@@ -570,8 +693,29 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     'Dodaj pierwszy wydatek do tego wydarzenia.',
                     textAlign: TextAlign.center,
                   ),
+                ] else if (filteredExpenses.isEmpty) ...[
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.search_off,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Brak wyników',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Nie znaleziono wydatków pasujących do wyszukiwania.',
+                    textAlign: TextAlign.center,
+                  ),
                 ] else ...[
-                  ...expenses.map(buildExpenseCard),
+                  ...filteredExpenses.map(buildExpenseCard),
                 ],
               ],
             );
