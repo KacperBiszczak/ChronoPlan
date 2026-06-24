@@ -5,6 +5,12 @@ import '../../auth/services/auth_service.dart';
 import '../models/event_model.dart';
 import '../services/event_service.dart';
 
+enum EventFilter {
+  all,
+  upcoming,
+  past,
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final searchController = TextEditingController();
 
   String searchQuery = '';
+  EventFilter selectedFilter = EventFilter.all;
 
   late Future<List<EventModel>> eventsFuture;
 
@@ -97,6 +104,34 @@ class _HomeScreenState extends State<HomeScreen> {
       onChanged: (value) {
         setState(() {
           searchQuery = value.trim().toLowerCase();
+        });
+      },
+    );
+  }
+
+  Widget buildFilterSelector() {
+    return SegmentedButton<EventFilter>(
+      segments: const [
+        ButtonSegment(
+          value: EventFilter.all,
+          label: Text('Wszystkie'),
+          icon: Icon(Icons.list),
+        ),
+        ButtonSegment(
+          value: EventFilter.upcoming,
+          label: Text('Nadchodzące'),
+          icon: Icon(Icons.event),
+        ),
+        ButtonSegment(
+          value: EventFilter.past,
+          label: Text('Zakończone'),
+          icon: Icon(Icons.event_busy),
+        ),
+      ],
+      selected: {selectedFilter},
+      onSelectionChanged: (selection) {
+        setState(() {
+          selectedFilter = selection.first;
         });
       },
     );
@@ -227,45 +262,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final events = snapshot.data ?? [];
 
-            final filteredEvents = events.where((event) {
-              final title = event.title.toLowerCase();
-              final description = event.description?.toLowerCase() ?? '';
-
-              return title.contains(searchQuery) || description.contains(searchQuery);
-            }).toList();
-
             if (events.isEmpty) {
               return ListView(
+                padding: const EdgeInsets.all(24),
                 children: const [
-                  SizedBox(height: 120),
-                  Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.event_busy,
-                          size: 56,
-                          color: Colors.blue,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Brak wydarzeń',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Utwórz pierwsze wydarzenie w ChronoPlan.',
-                        ),
-                      ],
+                  SizedBox(height: 100),
+                  Icon(
+                    Icons.event,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Brak wydarzeń',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Utwórz pierwsze wydarzenie.',
+                    textAlign: TextAlign.center,
                   ),
                 ],
               );
             }
 
             final now = DateTime.now();
+
+            final searchFilteredEvents = events.where((event) {
+              final title = event.title.toLowerCase();
+              final description = event.description?.toLowerCase() ?? '';
+
+              return title.contains(searchQuery) || description.contains(searchQuery);
+            }).toList();
+
+            final filteredEvents = searchFilteredEvents.where((event) {
+              final isPast = event.date.isBefore(now);
+
+              switch (selectedFilter) {
+                case EventFilter.all:
+                  return true;
+                case EventFilter.upcoming:
+                  return !isPast;
+                case EventFilter.past:
+                  return isPast;
+              }
+            }).toList();
 
             final upcomingEvents = filteredEvents
                 .where((event) => !event.date.isBefore(now))
@@ -279,6 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 buildSearchField(),
+                const SizedBox(height: 16),
+                buildFilterSelector(),
                 const SizedBox(height: 16),
 
                 if (filteredEvents.isEmpty) ...[
@@ -299,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Nie znaleziono wydarzeń pasujących do wyszukiwania.',
+                    'Nie znaleziono wydarzeń pasujących do wybranych filtrów.',
                     textAlign: TextAlign.center,
                   ),
                 ],
