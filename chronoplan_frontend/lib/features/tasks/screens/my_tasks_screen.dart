@@ -22,21 +22,48 @@ class MyTasksScreen extends StatefulWidget {
 class _MyTasksScreenState extends State<MyTasksScreen> {
   final taskService = TaskService();
 
+  final searchController = TextEditingController();
+
+  String searchQuery = '';
   MyTaskFilter selectedFilter = MyTaskFilter.all;
 
   late Future<List<TaskModel>> tasksFuture;
 
   List<TaskModel> filterTasks(List<TaskModel> tasks) {
+    final searchFilteredTasks = tasks.where((task) {
+      final title = task.title.toLowerCase();
+      final description = task.description?.toLowerCase() ?? '';
+      final eventTitle = task.event?.title.toLowerCase() ?? '';
+      final eventDescription = task.event?.description?.toLowerCase() ?? '';
+
+      return title.contains(searchQuery) ||
+          description.contains(searchQuery) ||
+          eventTitle.contains(searchQuery) ||
+          eventDescription.contains(searchQuery);
+    }).toList();
+
     switch (selectedFilter) {
       case MyTaskFilter.all:
-        return tasks;
+        return searchFilteredTasks;
       case MyTaskFilter.todo:
-        return tasks.where((task) => task.status == 'TODO').toList();
+        return searchFilteredTasks
+            .where((task) => task.status == 'TODO')
+            .toList();
       case MyTaskFilter.inProgress:
-        return tasks.where((task) => task.status == 'IN_PROGRESS').toList();
+        return searchFilteredTasks
+            .where((task) => task.status == 'IN_PROGRESS')
+            .toList();
       case MyTaskFilter.done:
-        return tasks.where((task) => task.status == 'DONE').toList();
+        return searchFilteredTasks
+            .where((task) => task.status == 'DONE')
+            .toList();
     }
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -118,6 +145,38 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
         const SnackBar(content: Text('Nieoczekiwany błąd')),
       );
     }
+  }
+
+  Widget buildSearchField() {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        hintText: 'Szukaj zadania...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+
+                  setState(() {
+                    searchQuery = '';
+                  });
+                },
+                icon: const Icon(Icons.clear),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value.trim().toLowerCase();
+        });
+      },
+    );
   }
 
   Widget buildFilterSelector() {
@@ -301,6 +360,8 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                buildSearchField(),
+                const SizedBox(height: 16),
                 buildFilterSelector(),
                 const SizedBox(height: 16),
 
@@ -313,7 +374,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Brak zadań w tym filtrze',
+                    'Brak wyników',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
@@ -322,7 +383,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Wybierz inny status zadania.',
+                    'Nie znaleziono zadań pasujących do wyszukiwania lub filtra.',
                     textAlign: TextAlign.center,
                   ),
                 ] else ...[
