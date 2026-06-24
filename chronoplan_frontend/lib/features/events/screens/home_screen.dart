@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/services/auth_service.dart';
+import '../../participants/services/participant_service.dart';
+import '../../tasks/services/task_service.dart';
 import '../models/event_model.dart';
 import '../services/event_service.dart';
 
@@ -21,6 +23,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final eventService = EventService();
   final authService = AuthService();
+  final taskService = TaskService();
+  final participantService = ParticipantService();
+
+  int myActiveTasksCount = 0;
+  int invitationsCount = 0;
   
   final searchController = TextEditingController();
 
@@ -39,12 +46,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     eventsFuture = eventService.getEvents();
+    loadCounters();
   }
 
   Future<void> refreshEvents() async {
     setState(() {
       eventsFuture = eventService.getEvents();
     });
+      
+    await loadCounters();
   }
 
   Future<void> logout() async {
@@ -174,6 +184,65 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> loadCounters() async {
+    try {
+      final myTasks = await taskService.getMyTasks();
+      final invitations = await participantService.getMyInvitations();
+
+      if (!mounted) return;
+
+      setState(() {
+        myActiveTasksCount =
+            myTasks.where((task) => task.status != 'DONE').length;
+        invitationsCount = invitations.length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        myActiveTasksCount = 0;
+        invitationsCount = 0;
+      });
+    }
+  }
+
+  Widget buildIconWithBadge({
+    required IconData icon,
+    required int count,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (count > 0)
+          Positioned(
+            right: -8,
+            top: -8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 18,
+                minHeight: 18,
+              ),
+              child: Text(
+                count > 99 ? '99+' : count.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,10 +250,17 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('ChronoPlan'),
         actions: [
           IconButton(
-            onPressed: () {
-              context.push('/my-tasks');
+            onPressed: () async {
+              await context.push('/my-tasks');
+
+              if (!mounted) return;
+
+              refreshEvents();
             },
-            icon: const Icon(Icons.assignment_outlined),
+            icon: buildIconWithBadge(
+              icon: Icons.assignment_outlined,
+              count: myActiveTasksCount,
+            ),
             tooltip: 'Moje zadania',
           ),
           IconButton(
@@ -195,7 +271,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               refreshEvents();
             },
-            icon: const Icon(Icons.mail_outline),
+            icon: buildIconWithBadge(
+              icon: Icons.mail_outline,
+              count: invitationsCount,
+            ),
             tooltip: 'Moje zaproszenia',
           ),
           IconButton(
