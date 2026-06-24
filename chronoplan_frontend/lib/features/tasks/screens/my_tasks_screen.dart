@@ -29,6 +29,19 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
 
   late Future<List<TaskModel>> tasksFuture;
 
+  int getStatusPriority(String status) {
+    switch (status) {
+      case 'TODO':
+        return 0;
+      case 'IN_PROGRESS':
+        return 1;
+      case 'DONE':
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
   List<TaskModel> filterTasks(List<TaskModel> tasks) {
     final searchFilteredTasks = tasks.where((task) {
       final title = task.title.toLowerCase();
@@ -42,22 +55,38 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
           eventDescription.contains(searchQuery);
     }).toList();
 
-    switch (selectedFilter) {
-      case MyTaskFilter.all:
-        return searchFilteredTasks;
-      case MyTaskFilter.todo:
-        return searchFilteredTasks
-            .where((task) => task.status == 'TODO')
-            .toList();
-      case MyTaskFilter.inProgress:
-        return searchFilteredTasks
-            .where((task) => task.status == 'IN_PROGRESS')
-            .toList();
-      case MyTaskFilter.done:
-        return searchFilteredTasks
-            .where((task) => task.status == 'DONE')
-            .toList();
-    }
+    final statusFilteredTasks = switch (selectedFilter) {
+      MyTaskFilter.all => searchFilteredTasks,
+      MyTaskFilter.todo => searchFilteredTasks
+          .where((task) => task.status == 'TODO')
+          .toList(),
+      MyTaskFilter.inProgress => searchFilteredTasks
+          .where((task) => task.status == 'IN_PROGRESS')
+          .toList(),
+      MyTaskFilter.done => searchFilteredTasks
+          .where((task) => task.status == 'DONE')
+          .toList(),
+    };
+
+    statusFilteredTasks.sort((a, b) {
+      final statusCompare =
+          getStatusPriority(a.status).compareTo(getStatusPriority(b.status));
+
+      if (statusCompare != 0) {
+        return statusCompare;
+      }
+
+      final aDate = a.event?.date;
+      final bDate = b.event?.date;
+
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+
+      return aDate.compareTo(bDate);
+    });
+
+    return statusFilteredTasks;
   }
 
   @override
