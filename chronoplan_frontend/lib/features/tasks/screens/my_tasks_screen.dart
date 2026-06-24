@@ -5,6 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 
+enum MyTaskFilter {
+  all,
+  todo,
+  inProgress,
+  done,
+}
+
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
 
@@ -15,7 +22,22 @@ class MyTasksScreen extends StatefulWidget {
 class _MyTasksScreenState extends State<MyTasksScreen> {
   final taskService = TaskService();
 
+  MyTaskFilter selectedFilter = MyTaskFilter.all;
+
   late Future<List<TaskModel>> tasksFuture;
+
+  List<TaskModel> filterTasks(List<TaskModel> tasks) {
+    switch (selectedFilter) {
+      case MyTaskFilter.all:
+        return tasks;
+      case MyTaskFilter.todo:
+        return tasks.where((task) => task.status == 'TODO').toList();
+      case MyTaskFilter.inProgress:
+        return tasks.where((task) => task.status == 'IN_PROGRESS').toList();
+      case MyTaskFilter.done:
+        return tasks.where((task) => task.status == 'DONE').toList();
+    }
+  }
 
   @override
   void initState() {
@@ -96,6 +118,51 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
         const SnackBar(content: Text('Nieoczekiwany błąd')),
       );
     }
+  }
+
+  Widget buildFilterSelector() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ChoiceChip(
+          label: const Text('Wszystkie'),
+          selected: selectedFilter == MyTaskFilter.all,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = MyTaskFilter.all;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Do zrobienia'),
+          selected: selectedFilter == MyTaskFilter.todo,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = MyTaskFilter.todo;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('W trakcie'),
+          selected: selectedFilter == MyTaskFilter.inProgress,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = MyTaskFilter.inProgress;
+            });
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Zrobione'),
+          selected: selectedFilter == MyTaskFilter.done,
+          onSelected: (_) {
+            setState(() {
+              selectedFilter = MyTaskFilter.done;
+            });
+          },
+        ),
+      ],
+    );
   }
 
   Widget buildTaskCard(TaskModel task) {
@@ -229,12 +296,39 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
               );
             }
 
-            return ListView.builder(
+            final filteredTasks = filterTasks(tasks);
+
+            return ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                return buildTaskCard(tasks[index]);
-              },
+              children: [
+                buildFilterSelector(),
+                const SizedBox(height: 16),
+
+                if (filteredTasks.isEmpty) ...[
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.filter_alt_off,
+                    size: 56,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Brak zadań w tym filtrze',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Wybierz inny status zadania.',
+                    textAlign: TextAlign.center,
+                  ),
+                ] else ...[
+                  ...filteredTasks.map(buildTaskCard),
+                ],
+              ],
             );
           },
         ),
