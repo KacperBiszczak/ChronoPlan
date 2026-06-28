@@ -1,38 +1,21 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../../../core/services/api_client.dart';
 import '../models/event_model.dart';
 
 class EventService {
   final _dio = ApiClient.dio;
-  final _storage = const FlutterSecureStorage();
-
-  Future<String> _getToken() async {
-    final token = await _storage.read(key: 'token');
-
-    if (token == null) {
-      throw Exception('Brak tokenu użytkownika');
-    }
-
-    return token;
-  }
 
   Future<List<EventModel>> getEvents() async {
-    final token = await _getToken();
-
-    final response = await _dio.get(
-      '/events',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
-    );
+    final response = await _dio.get('/events');
 
     final data = response.data as List;
 
     return data.map((item) => EventModel.fromJson(item)).toList();
+  }
+
+  Future<EventModel> getEventById(int id) async {
+    final response = await _dio.get('/events/$id');
+
+    return EventModel.fromJson(response.data);
   }
 
   Future<EventModel> createEvent({
@@ -40,8 +23,6 @@ class EventService {
     required String? description,
     required DateTime date,
   }) async {
-    final token = await _getToken();
-
     final response = await _dio.post(
       '/events',
       data: {
@@ -49,26 +30,6 @@ class EventService {
         'description': description,
         'date': date.toUtc().toIso8601String(),
       },
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
-    );
-
-    return EventModel.fromJson(response.data);
-  }
-
-  Future<EventModel> getEventById(int id) async {
-    final token = await _getToken();
-
-    final response = await _dio.get(
-      '/events/$id',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
     );
 
     return EventModel.fromJson(response.data);
@@ -80,8 +41,6 @@ class EventService {
     required String? description,
     required DateTime date,
   }) async {
-    final token = await _getToken();
-
     final response = await _dio.put(
       '/events/$id',
       data: {
@@ -89,26 +48,12 @@ class EventService {
         'description': description,
         'date': date.toUtc().toIso8601String(),
       },
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
     );
 
     return EventModel.fromJson(response.data);
   }
 
   Future<void> deleteEvent(int id) async {
-    final token = await _getToken();
-
-    await _dio.delete(
-      '/events/$id',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      ),
-    );
+    await _dio.delete('/events/$id');
   }
 }
