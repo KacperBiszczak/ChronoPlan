@@ -290,29 +290,106 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
  *       401:
  *         description: Brak tokenu lub nieprawidłowy token
  */
+/**
+ * @swagger
+ * /events/{id}:
+ *   delete:
+ *     summary: Usuwa wydarzenie
+ *     description: Usuwa wydarzenie razem z zadaniami, wydatkami i uczestnikami. Operacja dostępna tylko dla organizatora wydarzenia.
+ *     tags:
+ *       - Events
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Wydarzenie zostało usunięte
+ *       400:
+ *         description: Nieprawidłowe ID wydarzenia
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak uprawnień do usunięcia wydarzenia
+ *       404:
+ *         description: Nie znaleziono wydarzenia
+ */
 router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
     const user = (req as any).user;
+    const userId = Number(user?.userId);
     const id = Number(req.params.id);
 
-    const existingEvent = await prisma.event.findFirst({
-        where: {
-            id,
-            creatorId: user.userId,
-        },
-    });
-
-    if (!existingEvent) {
-        res.status(404).json({ message: "Nie znaleziono wydarzenia" });
-        return;
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
     }
 
-    await prisma.event.delete({
-        where: { id },
+    if (!id) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await prisma.event.findUnique({
+      where: {
+        id,
+      },
     });
 
+    if (!event) {
+      res.status(404).json({
+        message: "Nie znaleziono wydarzenia",
+      });
+      return;
+    }
+
+    if (event.creatorId !== userId) {
+      res.status(403).json({
+        message: "Tylko organizator może usunąć wydarzenie",
+      });
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.task.deleteMany({
+        where: {
+          eventId: id,
+        },
+      }),
+      prisma.expense.deleteMany({
+        where: {
+          eventId: id,
+        },
+      }),
+      prisma.eventParticipant.deleteMany({
+        where: {
+          eventId: id,
+        },
+      }),
+      prisma.event.delete({
+        where: {
+          id,
+        },
+      }),
+    ]);
+
     res.json({
-        message: "Wydarzenie usunięte",
+      message: "Wydarzenie zostało usunięte",
     });
+  } catch {
+    res.status(500).json({
+      message: "Błąd usuwania wydarzenia",
+    });
+  }
 });
 
 export default router;
