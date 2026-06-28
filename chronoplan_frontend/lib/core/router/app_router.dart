@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import 'root_navigator_key.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
@@ -14,6 +15,7 @@ import '../../features/participants/screens/my_invitations_screen.dart';
 import '../../features/events/screens/edit_event_screen.dart';
 
 final appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(

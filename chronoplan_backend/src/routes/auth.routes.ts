@@ -55,14 +55,15 @@ router.post("/login", validateBody(loginSchema), async (req, res) => {
     }
 
     const token = jwt.sign(
-    {
+      {
         userId: user.id,
         email: user.email,
-    },
-    process.env.JWT_SECRET!,
-    { 
-        expiresIn: "7d" 
-    });
+      },
+      process.env.JWT_SECRET!,
+      {
+        expiresIn: "7d",
+      }
+    );
 
     res.json({
         message: "Zalogowano poprawnie",
