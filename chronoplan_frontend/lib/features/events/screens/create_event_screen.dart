@@ -1,3 +1,4 @@
+import 'package:chronoplan_frontend/core/utils/formatters.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -67,6 +68,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     );
   }
 
+  String formatTime(TimeOfDay time) {
+    return '${AppFormatters.twoDigits(time.hour)}:${AppFormatters.twoDigits(time.minute)}';
+  }
+
   Future<void> createEvent() async {
     final title = titleController.text.trim();
     final description = descriptionController.text.trim();
@@ -127,18 +132,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
   }
 
-  String twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String formatDate(DateTime date) {
-    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
-  }
-
-  String formatTime(TimeOfDay time) {
-    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,7 +180,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.calendar_today),
                       title: const Text('Data'),
-                      subtitle: Text(formatDate(selectedDate)),
+                      subtitle: Text(AppFormatters.date(selectedDate)),
                       trailing: TextButton(
                         onPressed: pickDate,
                         child: const Text('Zmień'),

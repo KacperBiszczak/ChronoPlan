@@ -8,6 +8,7 @@ import '../models/event_model.dart';
 import '../services/event_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/services/auth_service.dart';
+import '../../../core/utils/formatters.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -39,22 +40,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     eventFuture = eventService.getEventById(widget.eventId);
     summaryFuture = loadSummary();
     loadCurrentUser();
-  }
-
-  String twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String formatDate(DateTime date) {
-    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
-  }
-
-  String formatTime(DateTime date) {
-    return '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
-  }
-
-  String formatAmount(double amount) {
-    return '${amount.toStringAsFixed(2)} zł';
   }
 
   Future<void> refreshEvent() async {
@@ -270,7 +255,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
         final expensesText = summary == null
             ? 'Ładowanie...'
-            : 'Suma: ${formatAmount(summary.totalExpenses)}';
+            : 'Suma: ${AppFormatters.amount(summary.totalExpenses)}';
 
         final participantsText = summary == null
             ? 'Ładowanie...'
@@ -457,12 +442,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     buildInfoCard(
                       icon: Icons.calendar_today,
                       title: 'Data',
-                      value: formatDate(event.date),
+                      value: AppFormatters.date(event.date),
                     ),
                     buildInfoCard(
                       icon: Icons.access_time,
                       title: 'Godzina',
-                      value: formatTime(event.date),
+                      value: AppFormatters.time(event.date),
                     ),
                     const SizedBox(height: 16),
                     buildModulesSection(),

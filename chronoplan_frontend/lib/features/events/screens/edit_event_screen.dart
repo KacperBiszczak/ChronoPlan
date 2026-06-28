@@ -1,3 +1,4 @@
+import 'package:chronoplan_frontend/core/utils/formatters.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -112,14 +113,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
     });
   }
 
-  String twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
   String formatDate(DateTime? date) {
     if (date == null) return 'Wybierz datę';
 
-    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year}';
+    return AppFormatters.date(date);
   }
 
   String formatTime(TimeOfDay? time) {

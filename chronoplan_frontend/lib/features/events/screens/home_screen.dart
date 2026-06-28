@@ -6,6 +6,7 @@ import '../../participants/services/participant_service.dart';
 import '../../tasks/services/task_service.dart';
 import '../models/event_model.dart';
 import '../services/event_service.dart';
+import '../../../core/utils/formatters.dart';
 
 enum EventFilter {
   all,
@@ -66,15 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     context.go('/login');
-  }
-
-  String twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String formatDate(DateTime date) {
-    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year} '
-        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
   Widget buildSectionTitle(String title) {
@@ -244,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          formatDate(event.date),
+                          AppFormatters.dateTime(event.date),
                           style: TextStyle(
                             color: isPast ? Colors.grey[700] : Colors.black87,
                           ),

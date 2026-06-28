@@ -5,6 +5,7 @@ import '../../auth/services/auth_service.dart';
 import '../../events/services/event_service.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
+import '../../../core/utils/formatters.dart';
 
 enum ExpenseSort {
   defaultOrder,
@@ -97,10 +98,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         );
         return filteredExpenses;
     }
-  }
-
-  String formatAmount(double amount) {
-    return '${amount.toStringAsFixed(2)} zł';
   }
 
   Future<void> showCreateExpenseDialog() async {
@@ -534,7 +531,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                 ),
                 Text(
-                  formatAmount(total),
+                  AppFormatters.amount(total),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -562,7 +559,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(formatAmount(expense.amount)),
+        subtitle: Text(AppFormatters.amount(expense.amount)),
       trailing: canManageExpenses
           ? Row(
               mainAxisSize: MainAxisSize.min,

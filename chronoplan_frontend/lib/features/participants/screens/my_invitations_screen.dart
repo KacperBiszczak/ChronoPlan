@@ -1,3 +1,4 @@
+import 'package:chronoplan_frontend/core/utils/formatters.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,11 +29,7 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
       invitationsFuture = participantService.getMyInvitations();
     });
   }
-
-  String formatDate(DateTime date) {
-    return '${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
+  
   Future<void> updateStatus({
     required ParticipantModel invitation,
     required String status,
@@ -104,7 +101,7 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
               ),
               subtitle: Text(
                 '${event?.description ?? 'Brak opisu'}\n'
-                'Data: ${event != null ? formatDate(event.date) : '-'}\n'
+                'Data: ${event != null ? AppFormatters.date(event.date) : '-'}\n'
                 'Organizator: ${event?.creator?.name ?? '-'}',
               ),
               isThreeLine: true,

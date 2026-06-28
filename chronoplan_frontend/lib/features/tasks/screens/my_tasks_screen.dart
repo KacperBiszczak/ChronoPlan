@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../models/task_model.dart';
 import '../services/task_service.dart';
+import '../../../core/utils/formatters.dart';
 
 enum MyTaskFilter {
   all,
@@ -105,15 +106,6 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
     setState(() {
       tasksFuture = taskService.getMyTasks();
     });
-  }
-
-  String twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String formatDate(DateTime date) {
-    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year} '
-        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
   }
 
   String getStatusLabel(String status) {
@@ -273,7 +265,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
         subtitle: Text(
           '${task.description?.isNotEmpty == true ? task.description! : 'Brak opisu'}\n'
           'Wydarzenie: ${event?.title ?? '-'}\n'
-          'Data: ${event != null ? formatDate(event.date) : '-'}',
+          'Data: ${event != null ? AppFormatters.dateTime(event.date) : '-'}',
         ),
         isThreeLine: true,
         trailing: DropdownButton<String>(
