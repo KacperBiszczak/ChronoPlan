@@ -74,21 +74,61 @@ router.post("/invite", authMiddleware, validateBody(inviteParticipantSchema), as
       return;
     }
 
-    const existingParticipant = await prisma.eventParticipant.findUnique({
+  const existingParticipant = await prisma.eventParticipant.findUnique({
+    where: {
+      eventId_userId: {
+        eventId,
+        userId: invitedUser.id,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (existingParticipant?.status === "INVITED") {
+    res.status(400).json({
+      message: "Użytkownik ma już aktywne zaproszenie do tego wydarzenia",
+    });
+    return;
+  }
+
+  if (existingParticipant?.status === "ACCEPTED") {
+    res.status(400).json({
+      message: "Użytkownik jest już uczestnikiem wydarzenia",
+    });
+    return;
+  }
+
+  if (existingParticipant?.status === "DECLINED") {
+    const renewedInvitation = await prisma.eventParticipant.update({
       where: {
-        eventId_userId: {
-          eventId: Number(eventId),
-          userId: invitedUser.id,
+        id: existingParticipant.id,
+      },
+      data: {
+        status: "INVITED",
+        role: "PARTICIPANT",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
     });
 
-    if (existingParticipant) {
-      res.status(409).json({
-        message: "Ten użytkownik jest już uczestnikiem wydarzenia",
-      });
-      return;
-    }
+    res.json(renewedInvitation);
+    return;
+  }
 
     const participant = await prisma.eventParticipant.create({
       data: {
