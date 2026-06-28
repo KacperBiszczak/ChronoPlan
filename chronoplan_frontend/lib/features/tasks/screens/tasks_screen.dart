@@ -7,6 +7,7 @@ import '../../participants/models/participant_model.dart';
 import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
+import '../../../core/utils/status_helpers.dart';
 
 enum TaskFilter {
   all,
@@ -95,32 +96,6 @@ class _TasksScreenState extends State<TasksScreen> {
 
     await loadPermissions();
     await future;
-  }
-
-  String getStatusLabel(String status) {
-    switch (status) {
-      case 'TODO':
-        return 'Do zrobienia';
-      case 'IN_PROGRESS':
-        return 'W trakcie';
-      case 'DONE':
-        return 'Zrobione';
-      default:
-        return status;
-    }
-  }
-
-  IconData getStatusIcon(String status) {
-    switch (status) {
-      case 'TODO':
-        return Icons.radio_button_unchecked;
-      case 'IN_PROGRESS':
-        return Icons.timelapse;
-      case 'DONE':
-        return Icons.check_circle;
-      default:
-        return Icons.help_outline;
-    }
   }
 
   Future<void> showEditTaskDialog(TaskModel task) async {
@@ -688,9 +663,9 @@ class _TasksScreenState extends State<TasksScreen> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Colors.blue,
+              backgroundColor: AppTaskStatus.color(task.status),
               foregroundColor: Colors.white,
-              child: Icon(getStatusIcon(task.status)),
+              child: Icon(AppTaskStatus.icon(task.status)),
             ),
             const SizedBox(width: 12),
             Expanded(

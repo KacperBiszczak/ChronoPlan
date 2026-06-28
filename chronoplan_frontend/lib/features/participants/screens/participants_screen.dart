@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
+import '../../../core/utils/status_helpers.dart';
 
 enum ParticipantFilter {
   all,
@@ -61,8 +62,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     final searchFilteredParticipants = participants.where((participant) {
       final name = participant.user?.name.toLowerCase() ?? '';
       final email = participant.user?.email.toLowerCase() ?? '';
-      final role = getRoleLabel(participant.role).toLowerCase();
-      final status = getStatusLabel(participant.status).toLowerCase();
+      final role = AppEventRole.label(participant.role).toLowerCase();
+      final status = AppParticipantStatus.label(participant.status).toLowerCase();
 
       return name.contains(searchQuery) ||
           email.contains(searchQuery) ||
@@ -111,43 +112,6 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     });
 
     await participantsFuture;
-  }
-
-  String getRoleLabel(String role) {
-    switch (role) {
-      case 'ORGANIZER':
-        return 'Organizator';
-      case 'PARTICIPANT':
-        return 'Uczestnik';
-      default:
-        return role;
-    }
-  }
-
-  String getStatusLabel(String status) {
-    switch (status) {
-      case 'INVITED':
-        return 'Zaproszony';
-      case 'ACCEPTED':
-        return 'Zaakceptował';
-      case 'DECLINED':
-        return 'Odrzucił';
-      default:
-        return status;
-    }
-  }
-
-  Color getStatusColor(String status) {
-    switch (status) {
-      case 'ACCEPTED':
-        return Colors.green;
-      case 'DECLINED':
-        return Colors.red;
-      case 'INVITED':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
   }
 
   Future<void> showInviteDialog() async {
@@ -432,7 +396,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           ),
         ),
         subtitle: Text(
-          '${user?.email ?? 'Brak emaila'}\n${getRoleLabel(participant.role)}',
+          '${user?.email ?? 'Brak emaila'}\n${AppEventRole.label(participant.role)}',
         ),
         isThreeLine: true,
         trailing: Row(
@@ -440,12 +404,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           children: [
             Chip(
               label: Text(
-                getStatusLabel(participant.status),
+                AppParticipantStatus.label(participant.status),
                 style: const TextStyle(
                   color: Colors.white,
                 ),
               ),
-              backgroundColor: getStatusColor(participant.status),
+              backgroundColor: AppParticipantStatus.color(participant.status),
             ),
             if (canDeleteParticipant) ...[
               const SizedBox(width: 8),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/status_helpers.dart';
 
 enum MyTaskFilter {
   all,
@@ -106,32 +107,6 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
     setState(() {
       tasksFuture = taskService.getMyTasks();
     });
-  }
-
-  String getStatusLabel(String status) {
-    switch (status) {
-      case 'TODO':
-        return 'Do zrobienia';
-      case 'IN_PROGRESS':
-        return 'W trakcie';
-      case 'DONE':
-        return 'Zrobione';
-      default:
-        return status;
-    }
-  }
-
-  IconData getStatusIcon(String status) {
-    switch (status) {
-      case 'TODO':
-        return Icons.radio_button_unchecked;
-      case 'IN_PROGRESS':
-        return Icons.timelapse;
-      case 'DONE':
-        return Icons.check_circle;
-      default:
-        return Icons.help_outline;
-    }
   }
 
   Future<void> changeStatus(TaskModel task, String status) async {
@@ -252,9 +227,9 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.blue,
+          backgroundColor: AppTaskStatus.color(task.status),
           foregroundColor: Colors.white,
-          child: Icon(getStatusIcon(task.status)),
+          child: Icon(AppTaskStatus.icon(task.status)),
         ),
         title: Text(
           task.title,
