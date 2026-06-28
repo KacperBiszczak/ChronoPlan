@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { canAccessEvent } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import {
   inviteParticipantSchema,
@@ -214,42 +215,63 @@ router.get("/my-invitations", authMiddleware, async (req, res) => {
  *         description: Użytkownik nie jest uczestnikiem wydarzenia
  */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
-  const user = (req as any).user;
-  const eventId = Number(req.params.eventId);
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
 
-  const currentParticipant = await prisma.eventParticipant.findFirst({
-    where: {
-      eventId,
-      userId: user.userId,
-    },
-  });
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
 
-  if (!currentParticipant) {
-    res.status(403).json({
-      message: "Nie jesteś uczestnikiem tego wydarzenia",
-    });
-    return;
-  }
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
 
-  const participants = await prisma.eventParticipant.findMany({
-    where: {
-      eventId,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
+    const event = await canAccessEvent(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Brak dostępu do uczestników tego wydarzenia",
+      });
+      return;
+    }
+
+    const participants = await prisma.eventParticipant.findMany({
+      where: {
+        eventId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
+      orderBy: [
+        {
+          role: "asc",
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
+    });
 
-  res.json(participants);
+    res.json(participants);
+  } catch {
+    res.status(500).json({
+      message: "Błąd pobierania uczestników",
+    });
+  }
 });
 
 /**
