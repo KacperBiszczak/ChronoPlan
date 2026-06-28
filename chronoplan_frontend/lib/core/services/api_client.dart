@@ -24,14 +24,28 @@ class ApiClient {
 
     dio.interceptors.add(
       InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: 'token');
+
+          final isAuthRequest =
+              options.path == '/auth/login' || options.path == '/users';
+
+          if (token != null &&
+              token.isNotEmpty &&
+              !isAuthRequest &&
+              !options.headers.containsKey('Authorization')) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+
+          handler.next(options);
+        },
         onError: (error, handler) async {
           final statusCode = error.response?.statusCode;
           final path = error.requestOptions.path;
 
           final isUnauthorized = statusCode == 401;
 
-          final isAuthRequest =
-              path == '/auth/login' || path == '/users';
+          final isAuthRequest = path == '/auth/login' || path == '/users';
 
           if (isUnauthorized && !isAuthRequest) {
             await _storage.delete(key: 'token');
