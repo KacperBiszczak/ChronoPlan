@@ -28,7 +28,8 @@ class ApiClient {
           final token = await _storage.read(key: 'token');
 
           final isAuthRequest =
-              options.path == '/auth/login' || options.path == '/users';
+              options.path == '/auth/login' ||
+              (options.path == '/users' && options.method.toUpperCase() == 'POST');
 
           if (token != null &&
               token.isNotEmpty &&
@@ -45,7 +46,11 @@ class ApiClient {
 
           final isUnauthorized = statusCode == 401;
 
-          final isAuthRequest = path == '/auth/login' || path == '/users';
+          final method = error.requestOptions.method.toUpperCase();
+
+          final isAuthRequest =
+              path == '/auth/login' ||
+              (path == '/users' && method == 'POST');
 
           if (isUnauthorized && !isAuthRequest) {
             await _storage.delete(key: 'token');
