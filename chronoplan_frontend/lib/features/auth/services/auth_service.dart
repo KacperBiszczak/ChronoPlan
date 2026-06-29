@@ -56,6 +56,27 @@ class AuthService {
     return UserModel.fromJson(response.data);
   }
 
+  Future<UserModel> updateProfile({
+    required String name,
+    required String email,
+    required String? avatarUrl,
+    required String? phone,
+    required String? bio,
+  }) async {
+    final response = await _dio.patch(
+      '/auth/me',
+      data: {
+        'name': name,
+        'email': email,
+        'avatarUrl': avatarUrl,
+        'phone': phone,
+        'bio': bio,
+      },
+    );
+
+    return UserModel.fromJson(response.data);
+  }
+
   Future<bool> isLoggedIn() async {
     final token = await getToken();
 
