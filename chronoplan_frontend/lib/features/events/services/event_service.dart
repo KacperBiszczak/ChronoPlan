@@ -22,6 +22,10 @@ class EventService {
     required String title,
     required String? description,
     required DateTime date,
+    String? locationName,
+    String? locationAddress,
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _dio.post(
       '/events',
@@ -29,6 +33,10 @@ class EventService {
         'title': title,
         'description': description,
         'date': date.toUtc().toIso8601String(),
+        'locationName': locationName,
+        'locationAddress': locationAddress,
+        'latitude': latitude,
+        'longitude': longitude,
       },
     );
 
@@ -40,6 +48,10 @@ class EventService {
     required String title,
     required String? description,
     required DateTime date,
+    String? locationName,
+    String? locationAddress,
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _dio.put(
       '/events/$id',
@@ -47,6 +59,10 @@ class EventService {
         'title': title,
         'description': description,
         'date': date.toUtc().toIso8601String(),
+        'locationName': locationName,
+        'locationAddress': locationAddress,
+        'latitude': latitude,
+        'longitude': longitude,
       },
     );
 

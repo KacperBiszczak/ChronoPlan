@@ -15,6 +15,10 @@ class CreateEventScreen extends StatefulWidget {
 class _CreateEventScreenState extends State<CreateEventScreen> {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
+  final locationNameController = TextEditingController();
+  final locationAddressController = TextEditingController();
+  final latitudeController = TextEditingController();
+  final longitudeController = TextEditingController();
 
   final eventService = EventService();
 
@@ -27,6 +31,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   void dispose() {
     titleController.dispose();
     descriptionController.dispose();
+    locationNameController.dispose();
+    locationAddressController.dispose();
+    latitudeController.dispose();
+    longitudeController.dispose();
     super.dispose();
   }
 
@@ -58,6 +66,26 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
   }
 
+  String? emptyToNull(String value) {
+    final trimmed = value.trim();
+
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  double? parseOptionalDouble(String value) {
+    final trimmed = value.trim().replaceAll(',', '.');
+
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return double.tryParse(trimmed);
+  }
+
   DateTime get selectedDateTime {
     return DateTime(
       selectedDate.year,
@@ -84,6 +112,28 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       return;
     }
 
+    final latitudeText = latitudeController.text.trim();
+    final longitudeText = longitudeController.text.trim();
+
+    final latitude = parseOptionalDouble(latitudeText);
+    final longitude = parseOptionalDouble(longitudeText);
+
+    if (latitudeText.isNotEmpty && latitude == null) {
+      AppSnackBar.info(
+        context,
+        'Szerokość geograficzna musi być liczbą',
+      );
+      return;
+    }
+
+    if (longitudeText.isNotEmpty && longitude == null) {
+      AppSnackBar.info(
+        context,
+        'Długość geograficzna musi być liczbą',
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -93,6 +143,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         title: title,
         description: description.isEmpty ? null : description,
         date: selectedDateTime,
+        locationName: emptyToNull(locationNameController.text),
+        locationAddress: emptyToNull(locationAddressController.text),
+        latitude: latitude,
+        longitude: longitude,
       );
 
       if (!mounted) return;
@@ -162,6 +216,52 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         labelText: 'Opis',
                         border: OutlineInputBorder(),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: locationNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nazwa miejsca',
+                        hintText: 'Np. Restauracja, sala, park',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.place_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: locationAddressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Adres',
+                        hintText: 'Np. ul. Przykładowa 10, Warszawa',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: latitudeController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Szerokość geograficzna',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: longitudeController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Długość geograficzna',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     ListTile(

@@ -21,6 +21,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
   final eventService = EventService();
+  final locationNameController = TextEditingController();
+  final locationAddressController = TextEditingController();
+  final latitudeController = TextEditingController();
+  final longitudeController = TextEditingController();
 
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
@@ -38,6 +42,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
   void dispose() {
     titleController.dispose();
     descriptionController.dispose();
+    locationNameController.dispose();
+    locationAddressController.dispose();
+    latitudeController.dispose();
+    longitudeController.dispose();
     super.dispose();
   }
 
@@ -47,6 +55,12 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
       titleController.text = event.title;
       descriptionController.text = event.description ?? '';
+
+      locationNameController.text = event.locationName ?? '';
+      locationAddressController.text = event.locationAddress ?? '';
+      latitudeController.text = event.latitude?.toString() ?? '';
+      longitudeController.text = event.longitude?.toString() ?? '';
+
       selectedDate = event.date;
       selectedTime = TimeOfDay.fromDateTime(event.date);
 
@@ -68,6 +82,26 @@ class _EditEventScreenState extends State<EditEventScreen> {
         fallback: 'Nie udało się pobrać wydarzenia',
       );
     }
+  }
+
+  String? emptyToNull(String value) {
+    final trimmed = value.trim();
+
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  double? parseOptionalDouble(String value) {
+    final trimmed = value.trim().replaceAll(',', '.');
+
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return double.tryParse(trimmed);
   }
 
   DateTime get selectedDateTime {
@@ -137,6 +171,28 @@ class _EditEventScreenState extends State<EditEventScreen> {
       return;
     }
 
+    final latitudeText = latitudeController.text.trim();
+    final longitudeText = longitudeController.text.trim();
+
+    final latitude = parseOptionalDouble(latitudeText);
+    final longitude = parseOptionalDouble(longitudeText);
+
+    if (latitudeText.isNotEmpty && latitude == null) {
+      AppSnackBar.info(
+        context,
+        'Szerokość geograficzna musi być liczbą',
+      );
+      return;
+    }
+
+    if (longitudeText.isNotEmpty && longitude == null) {
+      AppSnackBar.info(
+        context,
+        'Długość geograficzna musi być liczbą',
+      );
+      return;
+    }
+
     setState(() {
       isSaving = true;
     });
@@ -147,6 +203,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
         title: title,
         description: description.isEmpty ? null : description,
         date: selectedDateTime,
+        locationName: emptyToNull(locationNameController.text),
+        locationAddress: emptyToNull(locationAddressController.text),
+        latitude: latitude,
+        longitude: longitude,
       );
 
       if (!mounted) return;
@@ -209,6 +269,52 @@ class _EditEventScreenState extends State<EditEventScreen> {
               labelText: 'Opis',
               border: OutlineInputBorder(),
             ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: locationNameController,
+            decoration: const InputDecoration(
+              labelText: 'Nazwa miejsca',
+              hintText: 'Np. Restauracja, sala, park',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.place_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: locationAddressController,
+            decoration: const InputDecoration(
+              labelText: 'Adres',
+              hintText: 'Np. ul. Przykładowa 10, Warszawa',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.location_on_outlined),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: latitudeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Szerokość geograficzna',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: longitudeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Długość geograficzna',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Card(
