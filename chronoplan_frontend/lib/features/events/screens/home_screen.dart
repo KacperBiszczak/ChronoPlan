@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/services/auth_service.dart';
+import '../../auth/models/user_model.dart';
 import '../../participants/services/participant_service.dart';
 import '../../tasks/services/task_service.dart';
 import '../models/event_model.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int myActiveTasksCount = 0;
   int invitationsCount = 0;
   int? currentUserId;
+  UserModel? currentUser;
   
   final searchController = TextEditingController();
 
@@ -315,6 +317,42 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget buildProfileButton() {
+    final user = currentUser;
+    final avatarUrl = user?.avatarUrl;
+    final name = user?.name ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        tooltip: 'Mój profil',
+        onPressed: () async {
+          await context.push('/profile');
+
+          if (!mounted) return;
+
+          await refreshEvents();
+        },
+        icon: CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.blue.shade700,
+          backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+              ? NetworkImage(avatarUrl)
+              : null,
+          child: avatarUrl == null || avatarUrl.isEmpty
+              ? Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
   Future<void> loadCurrentUser() async {
     try {
       final user = await authService.getCurrentUser();
@@ -323,12 +361,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         currentUserId = user.id;
+        currentUser = user;
       });
     } catch (_) {
       if (!mounted) return;
 
       setState(() {
         currentUserId = null;
+        currentUser = null;
       });
     }
   }
@@ -427,13 +467,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             tooltip: 'Moje zaproszenia',
           ),
-            IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            tooltip: 'Mój profil',
-            onPressed: () {
-              context.push('/profile');
-            },
-          ),
+          buildProfileButton(),
+          
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Wyloguj',
