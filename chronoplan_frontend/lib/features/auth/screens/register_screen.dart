@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/error_message.dart';
 
 import '../services/auth_service.dart';
 
@@ -62,19 +63,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       context.go('/login');
-    } on DioException catch (error) {
+    } on DioException catch (e) {
       if (!mounted) return;
-
-      final data = error.response?.data;
-      String message = 'Błąd rejestracji';
-
-      if (data is Map && data['message'] != null) {
-        message = data['message'].toString();
-      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(
+            AppErrorMessage.from(
+              e,
+              fallback: 'Błąd rejestracji',
+            ),
+          ),
         ),
       );
     } catch (_) {

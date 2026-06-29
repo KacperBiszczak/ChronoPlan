@@ -5,6 +5,7 @@ import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
 import '../../../core/utils/status_helpers.dart';
+import '../../../core/utils/error_message.dart';
 
 enum ParticipantFilter {
   all,
@@ -149,19 +150,17 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (error) {
-                if (!dialogContext.mounted) return;
+              } on DioException catch (e) {
+                if (!mounted) return;
 
-                setDialogState(() {
-                  isLoading = false;
-                });
-
-                final message = error.response?.data['message'] ??
-                    'Błąd zapraszania uczestnika';
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(message),
+                    content: Text(
+                      AppErrorMessage.from(
+                        e,
+                        fallback: 'Nie udało się zaprosić uczestnika',
+                      ),
+                    ),
                   ),
                 );
               } catch (_) {

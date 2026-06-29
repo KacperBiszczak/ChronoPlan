@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/error_message.dart';
 
 import '../services/auth_service.dart';
 
@@ -57,14 +58,17 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       context.go('/home');
       
-    } on DioException catch (error) {
+    } on DioException catch (e) {
       if (!mounted) return;
-
-      final message = error.response?.data['message'] ?? 'Błąd logowania';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(
+            AppErrorMessage.from(
+              e,
+              fallback: 'Błąd logowania',
+            ),
+          ),
         ),
       );
     } catch (_) {

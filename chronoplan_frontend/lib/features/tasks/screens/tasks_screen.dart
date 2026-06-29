@@ -8,6 +8,7 @@ import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/status_helpers.dart';
+import '../../../core/utils/error_message.dart';
 
 enum TaskFilter {
   all,
@@ -143,19 +144,17 @@ class _TasksScreenState extends State<TasksScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (error) {
-                if (!dialogContext.mounted) return;
+              } on DioException catch (e) {
+                if (!mounted) return;
 
-                setDialogState(() {
-                  isLoading = false;
-                });
-
-                final message =
-                    error.response?.data['message'] ?? 'Błąd edycji zadania';
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(message),
+                    content: Text(
+                      AppErrorMessage.from(
+                        e,
+                        fallback: 'Nie udało się zapisać zadania',
+                      ),
+                    ),
                   ),
                 );
               } catch (_) {
@@ -381,14 +380,18 @@ class _TasksScreenState extends State<TasksScreen> {
       );
 
       await refreshTasks();
-    } on DioException catch (error) {
+    } on DioException catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd zmiany statusu zadania';
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(
+            AppErrorMessage.from(
+              e,
+              fallback: 'Nie udało się zapisać zadania',
+            ),
+          ),
+        ),
       );
     } catch (_) {
       if (!mounted) return;
@@ -440,14 +443,17 @@ class _TasksScreenState extends State<TasksScreen> {
           content: Text('Zadanie zostało usunięte'),
         ),
       );
-    } on DioException catch (error) {
+    } on DioException catch (e) {
       if (!mounted) return;
-
-      final message = error.response?.data['message'] ?? 'Błąd usuwania zadania';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(
+            AppErrorMessage.from(
+              e,
+              fallback: 'Nie udało się zapisać zadania',
+            ),
+          ),
         ),
       );
     } catch (_) {
@@ -504,19 +510,17 @@ class _TasksScreenState extends State<TasksScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (error) {
-                if (!dialogContext.mounted) return;
+              } on DioException catch (e) {
+                if (!mounted) return;
 
-                setDialogState(() {
-                  isLoading = false;
-                });
-
-                final message =
-                    error.response?.data['message'] ?? 'Błąd dodawania zadania';
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(message),
+                    content: Text(
+                      AppErrorMessage.from(
+                        e,
+                        fallback: 'Nie udało się zapisać zadania',
+                      ),
+                    ),
                   ),
                 );
               } catch (_) {
