@@ -31,6 +31,11 @@ model Event {
   description String?
   date        DateTime
 
+  locationName    String?
+  locationAddress String?
+  latitude        Float?
+  longitude       Float?
+
   creatorId Int
   creator   User @relation(fields: [creatorId], references: [id])
 

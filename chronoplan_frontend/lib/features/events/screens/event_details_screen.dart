@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 
 import '../../expenses/services/expense_service.dart';
 import '../../participants/services/participant_service.dart';

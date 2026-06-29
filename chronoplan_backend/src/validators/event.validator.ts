@@ -14,6 +14,12 @@ export const createEventSchema = z.object({
   date: z
     .string()
     .datetime("Data musi być poprawnym formatem ISO, np. 2026-08-01T18:00:00.000Z"),
+
+  locationName: z.string().max(120).optional().nullable(),
+  locationAddress: z.string().max(255).optional().nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+
 });
 
 export const updateEventSchema = z.object({
@@ -32,4 +38,10 @@ export const updateEventSchema = z.object({
     .string()
     .datetime("Data musi być poprawnym formatem ISO, np. 2026-08-01T18:00:00.000Z")
     .optional(),
+
+  locationName: z.string().max(120).optional().nullable(),
+  locationAddress: z.string().max(255).optional().nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+  
 });

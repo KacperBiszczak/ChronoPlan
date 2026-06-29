@@ -40,7 +40,15 @@ const router = Router();
  */
 router.post("/", authMiddleware, validateBody(createEventSchema), async (req, res) => {
     try {
-        const { title, description, date } = req.body;
+        const {
+          title,
+          description,
+          date,
+          locationName,
+          locationAddress,
+          latitude,
+          longitude,
+        } = req.body;
         const user = (req as any).user;
 
         const event = await prisma.event.create({
@@ -48,6 +56,10 @@ router.post("/", authMiddleware, validateBody(createEventSchema), async (req, re
                 title,
                 description,
                 date: new Date(date),
+                locationName,
+                locationAddress,
+                latitude,
+                longitude,
                 creatorId: user.userId,
                 participants: {
                 create: {
@@ -233,7 +245,15 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, res) => {
     const user = (req as any).user;
     const id = Number(req.params.id);
-    const { title, description, date } = req.body;
+    const {
+      title,
+      description,
+      date,
+      locationName,
+      locationAddress,
+      latitude,
+      longitude,
+    } = req.body;
 
     const existingEvent = await prisma.event.findFirst({
         where: {
@@ -247,19 +267,19 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
         return;
     }
 
-    const data: {
-        title?: string;
-        description?: string;
-        date?: Date;
-    } = {};
-
-    if (title !== undefined) data.title = title;
-    if (description !== undefined) data.description = description;
-    if (date !== undefined) data.date = new Date(date);
-
     const updatedEvent = await prisma.event.update({
-        where: { id },
-        data,
+      where: {
+        id,
+      },
+      data: {
+        title,
+        description,
+        date: new Date(date),
+        locationName,
+        locationAddress,
+        latitude,
+        longitude,
+      },
     });
 
     res.json(updatedEvent);

@@ -71,6 +71,7 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
 
   Widget buildInvitationCard(ParticipantModel invitation) {
     final event = invitation.event;
+    final creator = event?.creator;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -81,11 +82,7 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                child: Icon(Icons.mail_outline),
-              ),
+              leading: buildCreatorAvatar(creator),
               title: Text(
                 event?.title ?? 'Nieznane wydarzenie',
                 style: const TextStyle(
@@ -130,6 +127,31 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildCreatorAvatar(ParticipantUserModel? creator) {
+    final avatarUrl = creator?.avatarUrl;
+    final name = creator?.name ?? '';
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundColor: Colors.blue.shade100,
+        backgroundImage: NetworkImage(avatarUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
