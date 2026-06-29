@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/app_snack_bar.dart';
 
@@ -25,16 +24,15 @@ class _LoginScreenState extends State<LoginScreen> {
     passwordController.dispose();
     super.dispose();
   }
-
+  
   Future<void> login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Uzupełnij email i hasło'),
-        ),
+      AppSnackBar.info(
+        context,
+        'Uzupełnij email i hasło',
       );
       return;
     }
@@ -51,28 +49,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Zalogowano poprawnie'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Zalogowano poprawnie',
       );
+
       context.go('/home');
-      
-    } on DioException catch (e) {
+    } catch (e) {
       if (!mounted) return;
 
       AppSnackBar.error(
         context,
         e,
         fallback: 'Błąd logowania',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd logowania'),
-        ),
       );
     } finally {
       if (mounted) {

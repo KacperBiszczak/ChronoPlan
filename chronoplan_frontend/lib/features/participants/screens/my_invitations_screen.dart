@@ -1,7 +1,7 @@
 import 'package:chronoplan_frontend/core/utils/formatters.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
@@ -25,9 +25,13 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
   }
 
   Future<void> refreshInvitations() async {
+    final future = participantService.getMyInvitations();
+
     setState(() {
-      invitationsFuture = participantService.getMyInvitations();
+      invitationsFuture = future;
     });
+
+    await future;
   }
   
   Future<void> updateStatus({
@@ -44,34 +48,23 @@ class _MyInvitationsScreenState extends State<MyInvitationsScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            status == 'ACCEPTED'
-                ? 'Zaproszenie zaakceptowane'
-                : 'Zaproszenie odrzucone',
-          ),
-        ),
+      AppSnackBar.success(
+        context,
+        status == 'ACCEPTED'
+            ? 'Zaproszenie zaakceptowane'
+            : 'Zaproszenie odrzucone',
       );
 
       if (status == 'ACCEPTED') {
         context.pop();
       }
-      
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd zmiany statusu zaproszenia';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nieoczekiwany błąd')),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Błąd zmiany statusu zaproszenia',
       );
     }
   }

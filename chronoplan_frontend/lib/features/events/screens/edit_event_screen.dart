@@ -1,7 +1,7 @@
 import 'package:chronoplan_frontend/core/utils/formatters.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 import '../services/event_service.dart';
 
@@ -55,17 +55,17 @@ class _EditEventScreenState extends State<EditEventScreen> {
       setState(() {
         isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
       setState(() {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nie udało się pobrać wydarzenia'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się pobrać wydarzenia',
       );
     }
   }
@@ -122,7 +122,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
   String formatTime(TimeOfDay? time) {
     if (time == null) return 'Wybierz godzinę';
 
-    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
+    return '${AppFormatters.twoDigits(time.hour)}:${AppFormatters.twoDigits(time.minute)}';
   }
 
   Future<void> updateEvent() async {
@@ -130,10 +130,9 @@ class _EditEventScreenState extends State<EditEventScreen> {
     final description = descriptionController.text.trim();
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Podaj nazwę wydarzenia'),
-        ),
+      AppSnackBar.info(
+        context,
+        'Podaj nazwę wydarzenia',
       );
       return;
     }
@@ -152,31 +151,19 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wydarzenie zostało zaktualizowane'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Wydarzenie zostało zaktualizowane',
       );
 
       context.pop(true);
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd aktualizacji wydarzenia';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Błąd aktualizacji wydarzenia',
       );
     } finally {
       if (mounted) {

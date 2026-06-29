@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/app_snack_bar.dart';
@@ -35,10 +34,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = passwordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Uzupełnij wszystkie pola'),
-        ),
+      AppSnackBar.info(
+        context,
+        'Uzupełnij wszystkie pola',
       );
       return;
     }
@@ -62,21 +60,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       context.go('/login');
-    } on DioException catch (e) {
+    } catch (e) {
       if (!mounted) return;
 
       AppSnackBar.error(
         context,
         e,
         fallback: 'Błąd rejestracji',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd rejestracji'),
-        ),
       );
     } finally {
       if (mounted) {

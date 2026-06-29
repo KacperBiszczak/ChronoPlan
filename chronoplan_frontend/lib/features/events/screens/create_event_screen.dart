@@ -1,7 +1,7 @@
 import 'package:chronoplan_frontend/core/utils/formatters.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 import '../services/event_service.dart';
 
@@ -77,10 +77,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     final description = descriptionController.text.trim();
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Podaj tytuł wydarzenia'),
-        ),
+      AppSnackBar.info(
+        context,
+        'Podaj tytuł wydarzenia',
       );
       return;
     }
@@ -98,30 +97,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wydarzenie zostało utworzone'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Wydarzenie zostało utworzone',
       );
 
       context.pop(true);
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message = error.response?.data['message'] ?? 'Błąd tworzenia wydarzenia';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Błąd tworzenia wydarzenia',
       );
     } finally {
       if (mounted) {

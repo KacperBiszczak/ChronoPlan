@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +5,7 @@ import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/status_helpers.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 enum MyTaskFilter {
   all,
@@ -104,9 +104,13 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
   }
 
   Future<void> refreshTasks() async {
+    final future = taskService.getMyTasks();
+
     setState(() {
-      tasksFuture = taskService.getMyTasks();
+      tasksFuture = future;
     });
+
+    await future;
   }
 
   Future<void> changeStatus(TaskModel task, String status) async {
@@ -120,25 +124,17 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Status zadania został zmieniony'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Status zadania został zmieniony',
       );
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd zmiany statusu zadania';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nieoczekiwany błąd')),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Błąd zmiany statusu zadania',
       );
     }
   }
@@ -245,18 +241,18 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
         isThreeLine: true,
         trailing: DropdownButton<String>(
           value: task.status,
-          items: const [
+          items: [
             DropdownMenuItem(
               value: 'TODO',
-              child: Text('Do zrobienia'),
+              child: Text(AppTaskStatus.label('TODO')),
             ),
             DropdownMenuItem(
               value: 'IN_PROGRESS',
-              child: Text('W trakcie'),
+              child: Text(AppTaskStatus.label('IN_PROGRESS')),
             ),
             DropdownMenuItem(
               value: 'DONE',
-              child: Text('Zrobione'),
+              child: Text(AppTaskStatus.label('DONE')),
             ),
           ],
           onChanged: (value) {
