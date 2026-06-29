@@ -357,6 +357,32 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget buildAssigneeAvatar(TaskAssigneeModel? assignee) {
+    final avatarUrl = assignee?.avatarUrl;
+    final name = assignee?.name ?? '';
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 12,
+        backgroundColor: Colors.blue.shade100,
+        backgroundImage: NetworkImage(avatarUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 12,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Future<void> changeStatus(TaskModel task, String status) async {
     try {
       await taskService.updateTaskStatus(
@@ -616,10 +642,25 @@ class _TasksScreenState extends State<TasksScreen> {
                     Text(task.description!),
                   ],
                   const SizedBox(height: 4),
+                  if (task.assignee != null)
+                  Row(
+                    children: [
+                      buildAssigneeAvatar(task.assignee),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Odpowiedzialny: ${task.assignee!.name}',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
                   Text(
-                    task.assignee != null
-                        ? 'Odpowiedzialny: ${task.assignee!.name}'
-                        : 'Nie przypisano osoby',
+                    'Nie przypisano osoby',
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontSize: 13,

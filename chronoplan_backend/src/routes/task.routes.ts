@@ -87,6 +87,7 @@ router.post("/", authMiddleware, validateBody(createTaskSchema), async (req, res
                 id: true,
                 name: true,
                 email: true,
+                avatarUrl: true,
               }
             }
           }
@@ -156,6 +157,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
               id: true,
               name: true,
               email: true,
+              avatarUrl: true,
             },
           },
         },
@@ -228,6 +230,7 @@ router.get("/my", authMiddleware, async (req, res) => {
           id: true,
           name: true,
           email: true,
+          avatarUrl: true,
         },
       },
     },
@@ -377,6 +380,7 @@ router.patch(
               id: true,
               name: true,
               email: true,
+              avatarUrl: true,
             },
           },
         },
@@ -472,6 +476,7 @@ router.patch("/:id/status", authMiddleware, validateBody(updateTaskStatusSchema)
               id: true,
               name: true,
               email: true,
+              avatarUrl: true,
             }
           }
         }

@@ -2,11 +2,13 @@ class TaskAssigneeModel {
   final int id;
   final String name;
   final String email;
+  final String? avatarUrl;
 
   TaskAssigneeModel({
     required this.id,
     required this.name,
     required this.email,
+    required this.avatarUrl,
   });
 
   factory TaskAssigneeModel.fromJson(Map<String, dynamic> json) {
@@ -14,6 +16,7 @@ class TaskAssigneeModel {
       id: json['id'],
       name: json['name'],
       email: json['email'],
+      avatarUrl: json['avatarUrl'],
     );
   }
 }
