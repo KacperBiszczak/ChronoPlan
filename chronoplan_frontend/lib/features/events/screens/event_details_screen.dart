@@ -96,66 +96,36 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> leaveEvent() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Opuść wydarzenie'),
-          content: const Text(
-            'Czy na pewno chcesz opuścić to wydarzenie? Przestanie być widoczne na Twojej liście.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Opuść'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Opuścić wydarzenie?',
+      message:
+          'Czy na pewno chcesz opuścić to wydarzenie? Nie będziesz mieć już do niego dostępu.',
+      confirmText: 'Opuść',
+      cancelText: 'Anuluj',
+      isDanger: true,
     );
 
-    if (!mounted) return;
-
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
 
     try {
       await participantService.leaveEvent(widget.eventId);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Opuściłeś wydarzenie'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Opuszczono wydarzenie',
       );
 
       context.go('/home');
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd opuszczania wydarzenia';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się opuścić wydarzenia',
       );
     }
   }
@@ -163,9 +133,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   Future<void> deleteEvent() async {
     final confirmed = await AppConfirmDialog.show(
       context,
-      title: 'Usunąć wydarzenie?',
-      message: 'Tej operacji nie można cofnąć. Usunięte zostaną też zadania, wydatki i uczestnicy wydarzenia.',
+      title: 'Usuń wydarzenie',
+      message:
+          'Czy na pewno chcesz usunąć to wydarzenie? Usunięte zostaną też zadania, wydatki i uczestnicy.',
       confirmText: 'Usuń',
+      cancelText: 'Anuluj',
       isDanger: true,
     );
 
@@ -329,7 +301,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               if (event != null && !isOrganizer(event))
                 IconButton(
                   onPressed: leaveEvent,
-                  icon: const Icon(Icons.exit_to_app),
+                  icon: const Icon(Icons.logout),
                   tooltip: 'Opuść wydarzenie',
                 ),
             ],
