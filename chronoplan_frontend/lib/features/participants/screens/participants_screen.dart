@@ -229,37 +229,37 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   }
 
   Future<void> deleteParticipant(int participantId) async {
-    final confirmed = await AppConfirmDialog.show(
+  final confirmed = await AppConfirmDialog.show(
+    context,
+    title: 'Usunąć uczestnika?',
+    message: 'Uczestnik zostanie usunięty z wydarzenia. Jego przypisane zadania zostaną odpięte.',
+    confirmText: 'Usuń',
+    isDanger: true,
+  );
+
+  if (!mounted || !confirmed) return;
+
+  try {
+    await participantService.deleteParticipant(participantId);
+
+    await refreshParticipants();
+
+    if (!mounted) return;
+
+    AppSnackBar.success(
       context,
-      title: 'Usunąć uczestnika?',
-      message: 'Uczestnik zostanie usunięty z wydarzenia. Jego przypisane zadania zostaną odpięte.',
-      confirmText: 'Usuń',
-      isDanger: true,
+      'Uczestnik został usunięty',
     );
+  } catch (e) {
+    if (!mounted) return;
 
-    if (!mounted || !confirmed) return;
-
-    try {
-      await participantService.deleteParticipant(participantId);
-
-      await refreshParticipants();
-
-      if (!mounted) return;
-
-      AppSnackBar.success(
-        context,
-        'Uczestnik został usunięty',
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się usunąć uczestnika',
-      );
-    }
+    AppSnackBar.error(
+      context,
+      e,
+      fallback: 'Nie udało się usunąć uczestnika',
+    );
   }
+}
 
   Widget buildSearchField() {
     return TextField(
@@ -375,13 +375,13 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
             ),
             if (canDeleteParticipant) ...[
               const SizedBox(width: 8),
+              if (participant.role != 'ORGANIZER')
               IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Usuń uczestnika',
                 onPressed: () {
                   deleteParticipant(participant.id);
                 },
-                icon: const Icon(Icons.delete_outline),
-                color: Colors.red,
-                tooltip: 'Usuń uczestnika',
               ),
             ],
           ],
