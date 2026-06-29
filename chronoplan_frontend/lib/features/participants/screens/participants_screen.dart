@@ -5,8 +5,8 @@ import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
 import '../../../core/utils/status_helpers.dart';
-import '../../../core/utils/error_message.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
 
 enum ParticipantFilter {
   all,
@@ -228,67 +228,35 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     }
   }
 
-  Future<void> deleteParticipant(ParticipantModel participant) async {
-    final userName = participant.user?.name ?? participant.user?.email ?? 'uczestnika';
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Usuń uczestnika'),
-          content: Text('Czy na pewno chcesz usunąć "$userName" z wydarzenia?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Usuń'),
-            ),
-          ],
-        );
-      },
+  Future<void> deleteParticipant(int participantId) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usunąć uczestnika?',
+      message: 'Uczestnik zostanie usunięty z wydarzenia. Jego przypisane zadania zostaną odpięte.',
+      confirmText: 'Usuń',
+      isDanger: true,
     );
 
-    if (!mounted) return;
-
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
 
     try {
-      await participantService.deleteParticipant(participant.id);
+      await participantService.deleteParticipant(participantId);
 
       await refreshParticipants();
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Uczestnik został usunięty'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Uczestnik został usunięty',
       );
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd usuwania uczestnika';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć uczestnika',
       );
     }
   }
@@ -409,7 +377,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () {
-                  deleteParticipant(participant);
+                  deleteParticipant(participant.id);
                 },
                 icon: const Icon(Icons.delete_outline),
                 color: Colors.red,

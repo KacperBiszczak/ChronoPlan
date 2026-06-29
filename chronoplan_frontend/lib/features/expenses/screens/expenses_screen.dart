@@ -6,6 +6,8 @@ import '../../events/services/event_service.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 enum ExpenseSort {
   defaultOrder,
@@ -239,55 +241,35 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
-  Future<void> deleteExpense(ExpenseModel expense) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Usuń wydatek'),
-          content: Text('Czy na pewno chcesz usunąć "${expense.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Usuń'),
-            ),
-          ],
-        );
-      },
+  Future<void> deleteExpense(int expenseId) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usunąć wydatek?',
+      message: 'Wydatek zostanie trwale usunięty z budżetu wydarzenia.',
+      confirmText: 'Usuń',
+      isDanger: true,
     );
 
-    if (!mounted) return;
-
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
 
     try {
-      await expenseService.deleteExpense(expense.id);
+      await expenseService.deleteExpense(expenseId);
 
       await refreshExpenses();
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wydatek został usunięty')),
+      AppSnackBar.success(
+        context,
+        'Wydatek został usunięty',
       );
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd usuwania wydatku';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nieoczekiwany błąd')),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć wydatku',
       );
     }
   }
@@ -572,7 +554,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   tooltip: 'Edytuj',
                 ),
                 IconButton(
-                  onPressed: () => deleteExpense(expense),
+                  onPressed: () => deleteExpense(expense.id),
                   icon: const Icon(Icons.delete_outline),
                   color: Colors.red,
                   tooltip: 'Usuń',

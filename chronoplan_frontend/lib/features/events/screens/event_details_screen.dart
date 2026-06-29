@@ -9,6 +9,8 @@ import '../services/event_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -159,66 +161,34 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> deleteEvent() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Usuń wydarzenie'),
-          content: const Text(
-            'Czy na pewno chcesz usunąć to wydarzenie? Tej operacji nie można cofnąć.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Usuń'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usunąć wydarzenie?',
+      message: 'Tej operacji nie można cofnąć. Usunięte zostaną też zadania, wydatki i uczestnicy wydarzenia.',
+      confirmText: 'Usuń',
+      isDanger: true,
     );
 
-    if (!mounted) return;
-
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
 
     try {
       await eventService.deleteEvent(widget.eventId);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wydarzenie zostało usunięte'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Wydarzenie zostało usunięte',
       );
 
       context.go('/home');
-    } on DioException catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      final message =
-          error.response?.data['message'] ?? 'Błąd usuwania wydarzenia';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć wydarzenia',
       );
     }
   }

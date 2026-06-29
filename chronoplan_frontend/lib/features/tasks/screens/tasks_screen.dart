@@ -8,8 +8,9 @@ import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/status_helpers.dart';
-import '../../../core/utils/error_message.dart';
+// import '../../../core/utils/error_message.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
 
 enum TaskFilter {
   all,
@@ -394,33 +395,16 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> deleteTask(TaskModel task) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Usuń zadanie'),
-          content: Text('Czy na pewno chcesz usunąć zadanie "${task.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Usuń'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usuń zadanie',
+      message: 'Czy na pewno chcesz usunąć zadanie "${task.title}"?',
+      confirmText: 'Usuń',
+      cancelText: 'Anuluj',
+      isDanger: true,
     );
 
-    if (!mounted) return;
-
-    if (confirmed != true) return;
+    if (!mounted || !confirmed) return;
 
     try {
       await taskService.deleteTask(task.id);
@@ -429,26 +413,17 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Zadanie zostało usunięte'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Zadanie zostało usunięte',
       );
-    } on DioException catch (e) {
+    } catch (e) {
       if (!mounted) return;
 
       AppSnackBar.error(
         context,
         e,
-        fallback: 'Nie udało się zapisać zadania',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nieoczekiwany błąd'),
-        ),
+        fallback: 'Nie udało się usunąć zadania',
       );
     }
   }
