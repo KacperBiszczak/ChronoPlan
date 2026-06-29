@@ -427,10 +427,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             tooltip: 'Moje zaproszenia',
           ),
+            IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Mój profil',
+            onPressed: () {
+              context.push('/profile');
+            },
+          ),
           IconButton(
-            onPressed: logout,
             icon: const Icon(Icons.logout),
             tooltip: 'Wyloguj',
+            onPressed: logout,
           ),
         ],
       ),

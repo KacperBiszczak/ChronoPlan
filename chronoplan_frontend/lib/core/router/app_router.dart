@@ -4,6 +4,7 @@ import 'root_navigator_key.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
+import '../../features/auth/screens/profile_screen.dart';
 import '../../features/events/screens/home_screen.dart';
 import '../../features/events/screens/create_event_screen.dart';
 import '../../features/events/screens/event_details_screen.dart';
@@ -33,6 +34,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/home',
       builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const ProfileScreen(),
     ),
     GoRoute(
       path: '/events/create',
