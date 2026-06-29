@@ -1,12 +1,12 @@
-import 'package:dio/dio.dart';
+// import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../../auth/services/auth_service.dart';
 import '../models/participant_model.dart';
 import '../services/participant_service.dart';
 import '../../../core/utils/status_helpers.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
+import '../../auth/services/auth_service.dart';
 
 enum ParticipantFilter {
   all,
@@ -41,6 +41,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final participantService = ParticipantService();
   final authService = AuthService();
 
+
   final searchController = TextEditingController();
 
   String searchQuery = '';
@@ -57,6 +58,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   @override
   void initState() {
     super.initState();
+
     participantsFuture = loadParticipantsData();
   }
 
@@ -151,25 +153,17 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (e) {
-                if (!mounted) return;
-
-                AppSnackBar.error(
-                  context,
-                  e,
-                  fallback: 'Nie udało się zaprosić uczestnika',
-                );
-              } catch (_) {
+              } catch (e) {
                 if (!dialogContext.mounted) return;
 
                 setDialogState(() {
                   isLoading = false;
                 });
 
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Nieoczekiwany błąd'),
-                  ),
+                AppSnackBar.error(
+                  dialogContext,
+                  e,
+                  fallback: 'Nie udało się zaprosić uczestnika',
                 );
               }
             }
@@ -228,38 +222,40 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     }
   }
 
-  Future<void> deleteParticipant(int participantId) async {
-  final confirmed = await AppConfirmDialog.show(
-    context,
-    title: 'Usunąć uczestnika?',
-    message: 'Uczestnik zostanie usunięty z wydarzenia. Jego przypisane zadania zostaną odpięte.',
-    confirmText: 'Usuń',
-    isDanger: true,
-  );
-
-  if (!mounted || !confirmed) return;
-
-  try {
-    await participantService.deleteParticipant(participantId);
-
-    await refreshParticipants();
-
-    if (!mounted) return;
-
-    AppSnackBar.success(
+  Future<void> deleteParticipant(ParticipantModel participant) async {
+    final confirmed = await AppConfirmDialog.show(
       context,
-      'Uczestnik został usunięty',
+      title: 'Usuń uczestnika',
+      message:
+          'Czy na pewno chcesz usunąć uczestnika "${participant.user?.name ?? 'Nieznany użytkownik'}" z wydarzenia?',
+      confirmText: 'Usuń',
+      cancelText: 'Anuluj',
+      isDanger: true,
     );
-  } catch (e) {
-    if (!mounted) return;
 
-    AppSnackBar.error(
-      context,
-      e,
-      fallback: 'Nie udało się usunąć uczestnika',
-    );
+    if (!mounted || !confirmed) return;
+
+    try {
+      await participantService.deleteParticipant(participant.id);
+
+      await refreshParticipants();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Uczestnik został usunięty',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć uczestnika',
+      );
+    }
   }
-}
 
   Widget buildSearchField() {
     return TextField(
@@ -338,8 +334,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     );
   }
 
-  Widget buildParticipantCard(ParticipantModel participant, bool canManageParticipants) {
+  Widget buildParticipantCard(
+    ParticipantModel participant,
+    bool canManageParticipants,
+  ) {
     final user = participant.user;
+
     final canDeleteParticipant =
         canManageParticipants && participant.role != 'ORGANIZER';
 
@@ -375,12 +375,11 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
             ),
             if (canDeleteParticipant) ...[
               const SizedBox(width: 8),
-              if (participant.role != 'ORGANIZER')
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'Usuń uczestnika',
                 onPressed: () {
-                  deleteParticipant(participant.id);
+                  deleteParticipant(participant);
                 },
               ),
             ],
