@@ -346,11 +346,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-          child: Icon(Icons.person),
-        ),
+        leading: buildUserAvatar(user),
         title: Text(
           user?.name ?? 'Nieznany użytkownik',
           style: const TextStyle(
@@ -418,6 +414,31 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
             child: const Text('Spróbuj ponownie'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget buildUserAvatar(ParticipantUserModel? user) {
+    final avatarUrl = user?.avatarUrl;
+    final name = user?.name ?? '';
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundColor: Colors.blue.shade100,
+        backgroundImage: NetworkImage(avatarUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

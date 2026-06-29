@@ -2,11 +2,13 @@ class ParticipantUserModel {
   final int id;
   final String name;
   final String email;
+  final String? avatarUrl;
 
   ParticipantUserModel({
     required this.id,
     required this.name,
     required this.email,
+    required this.avatarUrl,
   });
 
   factory ParticipantUserModel.fromJson(Map<String, dynamic> json) {
@@ -14,6 +16,7 @@ class ParticipantUserModel {
       id: json['id'],
       name: json['name'],
       email: json['email'],
+      avatarUrl: json['avatarUrl'],
     );
   }
 }
