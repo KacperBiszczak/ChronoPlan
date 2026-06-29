@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/services/auth_service.dart';
@@ -8,7 +7,6 @@ import '../../participants/services/participant_service.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/status_helpers.dart';
-// import '../../../core/utils/error_message.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 
@@ -92,9 +90,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> refreshTasks() async {
     final future = taskService.getTasksByEvent(widget.eventId);
-    
+
     setState(() {
-      tasksFuture = taskService.getTasksByEvent(widget.eventId);
+      tasksFuture = future;
     });
 
     await loadPermissions();
@@ -123,10 +121,9 @@ class _TasksScreenState extends State<TasksScreen> {
               final description = descriptionController.text.trim();
 
               if (title.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Podaj tytuł zadania'),
-                  ),
+                AppSnackBar.info(
+                dialogContext,
+                  'Podaj tytuł zadania',
                 );
                 return;
               }
@@ -146,25 +143,17 @@ class _TasksScreenState extends State<TasksScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (e) {
-                if (!mounted) return;
-
-                AppSnackBar.error(
-                  context,
-                  e,
-                  fallback: 'Nie udało się zapisać zadania',
-                );
-              } catch (_) {
+              } catch (e) {
                 if (!dialogContext.mounted) return;
 
                 setDialogState(() {
                   isLoading = false;
                 });
 
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Nieoczekiwany błąd'),
-                  ),
+                AppSnackBar.error(
+                  dialogContext,
+                  e,
+                  fallback: 'Nie udało się zapisać zadania',
                 );
               }
             }
@@ -284,10 +273,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Zadanie zostało zaktualizowane'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Zadanie zostało zaktualizowane',
       );
     }
   }
@@ -377,19 +365,13 @@ class _TasksScreenState extends State<TasksScreen> {
       );
 
       await refreshTasks();
-    } on DioException catch (e) {
+    } catch (e) {
       if (!mounted) return;
 
       AppSnackBar.error(
         context,
         e,
         fallback: 'Nie udało się zapisać zadania',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nieoczekiwany błąd')),
       );
     }
   }
@@ -448,10 +430,9 @@ class _TasksScreenState extends State<TasksScreen> {
               final description = descriptionController.text.trim();
 
               if (title.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Podaj tytuł zadania'),
-                  ),
+                AppSnackBar.info(
+                  dialogContext,
+                  'Podaj tytuł zadania',
                 );
                 return;
               }
@@ -471,25 +452,17 @@ class _TasksScreenState extends State<TasksScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (e) {
-                if (!mounted) return;
-
-                AppSnackBar.error(
-                  context,
-                  e,
-                  fallback: 'Nie udało się zapisać zadania',
-                );
-              } catch (_) {
+              } catch (e) {
                 if (!dialogContext.mounted) return;
 
                 setDialogState(() {
                   isLoading = false;
                 });
 
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Nieoczekiwany błąd'),
-                  ),
+                AppSnackBar.error(
+                  dialogContext,
+                  e,
+                  fallback: 'Nie udało się zapisać zadania',
                 );
               }
             }
@@ -607,10 +580,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Zadanie zostało dodane'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Zadanie zostało dodane',
       );
     }
   }
@@ -659,18 +631,18 @@ class _TasksScreenState extends State<TasksScreen> {
             const SizedBox(width: 12),
             DropdownButton<String>(
               value: task.status,
-              items: const [
+              items: [
                 DropdownMenuItem(
                   value: 'TODO',
-                  child: Text('Do zrobienia'),
+                  child: Text(AppTaskStatus.label('TODO')),
                 ),
                 DropdownMenuItem(
                   value: 'IN_PROGRESS',
-                  child: Text('W trakcie'),
+                  child: Text(AppTaskStatus.label('IN_PROGRESS')),
                 ),
                 DropdownMenuItem(
                   value: 'DONE',
-                  child: Text('Zrobione'),
+                  child: Text(AppTaskStatus.label('DONE')),
                 ),
               ],
               onChanged: (value) {

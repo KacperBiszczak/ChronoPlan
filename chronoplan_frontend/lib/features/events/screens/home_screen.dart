@@ -7,6 +7,8 @@ import '../../tasks/services/task_service.dart';
 import '../models/event_model.dart';
 import '../services/event_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 enum EventFilter {
   all,
@@ -53,20 +55,51 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> refreshEvents() async {
+    final future = eventService.getEvents();
+
     setState(() {
-      eventsFuture = eventService.getEvents();
+      eventsFuture = future;
     });
-      
-    await loadCounters();
-    await loadCurrentUser();
+
+    await Future.wait([
+      future,
+      loadCounters(),
+      loadCurrentUser(),
+    ]);
   }
 
   Future<void> logout() async {
-    await authService.logout();
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Wylogować się?',
+      message: 'Czy na pewno chcesz się wylogować z aplikacji?',
+      confirmText: 'Wyloguj',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
 
-    if (!mounted) return;
+    if (!mounted || !confirmed) return;
 
-    context.go('/login');
+    try {
+      await authService.logout();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Wylogowano',
+      );
+
+      context.go('/login');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się wylogować',
+      );
+    }
   }
 
   Widget buildSectionTitle(String title) {
@@ -187,8 +220,12 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          context.push('/events/${event.id}');
+        onTap: () async {
+          await context.push('/events/${event.id}');
+
+          if (!mounted) return;
+
+          refreshEvents();
         },
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -367,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               if (!mounted) return;
 
-              refreshEvents();
+              await refreshEvents();
             },
             icon: buildIconWithBadge(
               
@@ -382,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               if (!mounted) return;
 
-              refreshEvents();
+              await refreshEvents();
             },
             icon: buildIconWithBadge(
               icon: Icons.mail_outline,
@@ -401,8 +438,10 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () async {
           final created = await context.push<bool>('/events/create');
 
+          if (!mounted) return;
+
           if (created == true) {
-            refreshEvents();
+            await refreshEvents();
           }
         },
         child: const Icon(Icons.add),

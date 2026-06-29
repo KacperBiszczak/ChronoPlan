@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/services/auth_service.dart';
@@ -119,15 +118,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               final amount = double.tryParse(amountText);
 
               if (title.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Podaj nazwę wydatku')),
+                AppSnackBar.info(
+                  dialogContext,
+                  'Podaj nazwę wydatku',
                 );
                 return;
               }
 
               if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Podaj poprawną kwotę')),
+                AppSnackBar.info(
+                  dialogContext,
+                  'Podaj poprawną kwotę',
                 );
                 return;
               }
@@ -146,28 +147,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (error) {
+              } catch (e) {
                 if (!dialogContext.mounted) return;
 
                 setDialogState(() {
                   isLoading = false;
                 });
 
-                final message =
-                    error.response?.data['message'] ?? 'Błąd dodawania wydatku';
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(message)),
-                );
-              } catch (_) {
-                if (!dialogContext.mounted) return;
-
-                setDialogState(() {
-                  isLoading = false;
-                });
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Nieoczekiwany błąd')),
+                AppSnackBar.error(
+                  dialogContext,
+                  e,
+                  fallback: 'Błąd dodawania wydatku',
                 );
               }
             }
@@ -235,41 +225,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wydatek został dodany')),
-      );
-    }
-  }
-
-  Future<void> deleteExpense(int expenseId) async {
-    final confirmed = await AppConfirmDialog.show(
-      context,
-      title: 'Usunąć wydatek?',
-      message: 'Wydatek zostanie trwale usunięty z budżetu wydarzenia.',
-      confirmText: 'Usuń',
-      isDanger: true,
-    );
-
-    if (!mounted || !confirmed) return;
-
-    try {
-      await expenseService.deleteExpense(expenseId);
-
-      await refreshExpenses();
-
-      if (!mounted) return;
-
       AppSnackBar.success(
         context,
-        'Wydatek został usunięty',
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się usunąć wydatku',
+        'Wydatek został dodany',
       );
     }
   }
@@ -293,15 +251,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               final amount = double.tryParse(amountText);
 
               if (title.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Podaj nazwę wydatku')),
+                AppSnackBar.info(
+                  dialogContext,
+                  'Podaj nazwę wydatku',
                 );
                 return;
               }
 
               if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Podaj poprawną kwotę')),
+                AppSnackBar.info(
+                  dialogContext,
+                  'Podaj poprawną kwotę',
                 );
                 return;
               }
@@ -320,28 +280,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 if (!dialogContext.mounted) return;
 
                 Navigator.of(dialogContext).pop(true);
-              } on DioException catch (error) {
+              } catch (e) {
                 if (!dialogContext.mounted) return;
 
                 setDialogState(() {
                   isLoading = false;
                 });
 
-                final message =
-                    error.response?.data['message'] ?? 'Błąd edycji wydatku';
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(message)),
-                );
-              } catch (_) {
-                if (!dialogContext.mounted) return;
-
-                setDialogState(() {
-                  isLoading = false;
-                });
-
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Nieoczekiwany błąd')),
+                AppSnackBar.error(
+                  dialogContext,
+                  e,
+                  fallback: 'Błąd edycji wydatku',
                 );
               }
             }
@@ -409,8 +358,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wydatek został zaktualizowany')),
+      AppSnackBar.success(
+        context,
+        'Wydatek został zaktualizowany',
       );
     }
   }
@@ -554,7 +504,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   tooltip: 'Edytuj',
                 ),
                 IconButton(
-                  onPressed: () => deleteExpense(expense.id),
+                  onPressed: () => deleteExpense(expense),
                   icon: const Icon(Icons.delete_outline),
                   color: Colors.red,
                   tooltip: 'Usuń',
@@ -564,6 +514,40 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           : null,
       ),
     );
+  }
+
+  Future<void> deleteExpense(ExpenseModel expense) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usuń wydatek',
+      message: 'Czy na pewno chcesz usunąć wydatek "${expense.title}"?',
+      confirmText: 'Usuń',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
+    try {
+      await expenseService.deleteExpense(expense.id);
+
+      await refreshExpenses();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Wydatek został usunięty',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć wydatku',
+      );
+    }
   }
 
   Future<void> loadPermissions() async {
