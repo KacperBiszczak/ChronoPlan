@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/utils/error_message.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 import '../services/auth_service.dart';
 
@@ -56,25 +56,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konto zostało utworzone. Możesz się zalogować.'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Konto zostało utworzone',
       );
 
       context.go('/login');
     } on DioException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppErrorMessage.from(
-              e,
-              fallback: 'Błąd rejestracji',
-            ),
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Błąd rejestracji',
       );
     } catch (_) {
       if (!mounted) return;

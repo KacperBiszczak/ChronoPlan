@@ -6,6 +6,7 @@ import '../models/participant_model.dart';
 import '../services/participant_service.dart';
 import '../../../core/utils/status_helpers.dart';
 import '../../../core/utils/error_message.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 enum ParticipantFilter {
   all,
@@ -153,15 +154,10 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
               } on DioException catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppErrorMessage.from(
-                        e,
-                        fallback: 'Nie udało się zaprosić uczestnika',
-                      ),
-                    ),
-                  ),
+                AppSnackBar.error(
+                  context,
+                  e,
+                  fallback: 'Nie udało się zaprosić uczestnika',
                 );
               } catch (_) {
                 if (!dialogContext.mounted) return;
@@ -225,10 +221,9 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Uczestnik został zaproszony'),
-        ),
+      AppSnackBar.success(
+        context,
+        'Zaproszenie zostało wysłane',
       );
     }
   }

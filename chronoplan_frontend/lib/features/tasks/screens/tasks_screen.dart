@@ -9,6 +9,7 @@ import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../../../core/utils/status_helpers.dart';
 import '../../../core/utils/error_message.dart';
+import '../../../core/utils/app_snack_bar.dart';
 
 enum TaskFilter {
   all,
@@ -147,15 +148,10 @@ class _TasksScreenState extends State<TasksScreen> {
               } on DioException catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppErrorMessage.from(
-                        e,
-                        fallback: 'Nie udało się zapisać zadania',
-                      ),
-                    ),
-                  ),
+                AppSnackBar.error(
+                  context,
+                  e,
+                  fallback: 'Nie udało się zapisać zadania',
                 );
               } catch (_) {
                 if (!dialogContext.mounted) return;
@@ -383,15 +379,10 @@ class _TasksScreenState extends State<TasksScreen> {
     } on DioException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppErrorMessage.from(
-              e,
-              fallback: 'Nie udało się zapisać zadania',
-            ),
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się zapisać zadania',
       );
     } catch (_) {
       if (!mounted) return;
@@ -446,15 +437,10 @@ class _TasksScreenState extends State<TasksScreen> {
     } on DioException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppErrorMessage.from(
-              e,
-              fallback: 'Nie udało się zapisać zadania',
-            ),
-          ),
-        ),
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się zapisać zadania',
       );
     } catch (_) {
       if (!mounted) return;
@@ -513,15 +499,10 @@ class _TasksScreenState extends State<TasksScreen> {
               } on DioException catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      AppErrorMessage.from(
-                        e,
-                        fallback: 'Nie udało się zapisać zadania',
-                      ),
-                    ),
-                  ),
+                AppSnackBar.error(
+                  context,
+                  e,
+                  fallback: 'Nie udało się zapisać zadania',
                 );
               } catch (_) {
                 if (!dialogContext.mounted) return;
