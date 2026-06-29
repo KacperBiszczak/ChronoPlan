@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { validateBody } from "../middlewares/validate.middleware";
 import { loginSchema } from "../validators/auth.validator";
 import { authMiddleware } from "../middlewares/auth.middleware";
+import { updateProfileSchema } from "../validators/user.validator";
 
 
 const router = Router();
@@ -120,6 +121,9 @@ router.get("/me", authMiddleware, async (req, res) => {
         id: true,
         name: true,
         email: true,
+        avatarUrl: true,
+        phone: true,
+        bio: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -139,5 +143,83 @@ router.get("/me", authMiddleware, async (req, res) => {
     });
   }
 });
+
+/**
+ * @swagger
+ * /auth/me:
+ *   patch:
+ *     summary: Aktualizuje profil aktualnie zalogowanego użytkownika
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch(
+  "/me",
+  authMiddleware,
+  validateBody(updateProfileSchema),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = Number(user?.userId);
+
+      if (!userId) {
+        res.status(401).json({
+          message: "Nieprawidłowy token",
+        });
+        return;
+      }
+
+      const { name, email, avatarUrl, phone, bio } = req.body;
+
+      if (email) {
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            email,
+            NOT: {
+              id: userId,
+            },
+          },
+        });
+
+        if (existingUser) {
+          res.status(409).json({
+            message: "Użytkownik z takim emailem już istnieje",
+          });
+          return;
+        }
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          name,
+          email,
+          avatarUrl,
+          phone,
+          bio,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          phone: true,
+          bio: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      res.json(updatedUser);
+    } catch {
+      res.status(500).json({
+        message: "Błąd aktualizacji profilu",
+      });
+    }
+  }
+);
 
 export default router;
