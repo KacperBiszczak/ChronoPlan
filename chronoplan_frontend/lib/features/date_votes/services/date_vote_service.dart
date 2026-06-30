@@ -39,6 +39,10 @@ class DateVoteService {
     );
   }
 
+  Future<void> applyOption(int optionId) async {
+    await _dio.patch('/date-votes/options/$optionId/apply');
+  }
+
   Future<void> deleteOption(int optionId) async {
     await _dio.delete('/date-votes/options/$optionId');
   }

@@ -254,6 +254,40 @@ class _DateVotingScreenState extends State<DateVotingScreen> {
     }
   }
 
+  Future<void> applyOption(DateOptionModel option) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Ustawić termin wydarzenia?',
+      message:
+          'Czy chcesz ustawić ${AppFormatters.dateTime(option.proposedDate)} jako właściwy termin wydarzenia?',
+      confirmText: 'Ustaw',
+      cancelText: 'Anuluj',
+    );
+
+    if (!mounted || !confirmed) return;
+
+    try {
+      await dateVoteService.applyOption(option.id);
+
+      await refreshVoting();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Termin wydarzenia został zaktualizowany',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się ustawić terminu wydarzenia',
+      );
+    }
+  }
+
   Future<void> deleteOption(DateOptionModel option) async {
     final confirmed = await AppConfirmDialog.show(
       context,
@@ -376,6 +410,19 @@ class _DateVotingScreenState extends State<DateVotingScreen> {
                 Text('Nie: $noCount'),
               ],
             ),
+            if (data.isOrganizer) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    applyOption(option);
+                  },
+                  icon: const Icon(Icons.event_available_outlined),
+                  label: const Text('Ustaw jako termin wydarzenia'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
