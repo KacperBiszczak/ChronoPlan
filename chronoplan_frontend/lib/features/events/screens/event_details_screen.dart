@@ -10,6 +10,9 @@ import '../../auth/services/auth_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -178,6 +181,148 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         ),
         title: Text(title),
         subtitle: Text(value),
+      ),
+    );
+  }
+
+  Future<void> openLocationInMaps(EventModel event) async {
+    if (event.latitude == null || event.longitude == null) {
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}',
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  Widget buildEventMap(EventModel event) {
+    if (event.latitude == null || event.longitude == null) {
+      return const SizedBox.shrink();
+    }
+
+    final point = LatLng(
+      event.latitude!,
+      event.longitude!,
+    );
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 220,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: point,
+                initialZoom: 15,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.chronoplan_frontend',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: point,
+                      width: 48,
+                      height: 48,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                        size: 44,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                openLocationInMaps(event);
+              },
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Otwórz w mapach'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildLocationSection(EventModel event) {
+    final hasLocationName =
+        event.locationName != null && event.locationName!.trim().isNotEmpty;
+
+    final hasLocationAddress =
+        event.locationAddress != null && event.locationAddress!.trim().isNotEmpty;
+
+    final hasCoordinates = event.latitude != null && event.longitude != null;
+
+    if (!hasLocationName && !hasLocationAddress && !hasCoordinates) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Lokalizacja',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (hasLocationName) ...[
+              Text(
+                event.locationName!,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
+
+            if (hasLocationAddress) ...[
+              Text(event.locationAddress!),
+              const SizedBox(height: 6),
+            ],
+
+            if (hasCoordinates)
+              Text(
+                'Współrzędne: ${event.latitude!.toStringAsFixed(6)}, ${event.longitude!.toStringAsFixed(6)}',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontSize: 13,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -390,8 +535,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       title: 'Godzina',
                       value: AppFormatters.time(event.date),
                     ),
-                    const SizedBox(height: 16),
                     buildModulesSection(),
+                    const SizedBox(height: 16),
+                    buildLocationSection(event),
+                    const SizedBox(height: 16),
+                    buildEventMap(event),
+                    const SizedBox(height: 16),
                   ],
                 );
               },
