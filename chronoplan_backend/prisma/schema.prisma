@@ -21,6 +21,8 @@ model User {
 
   eventParticipants EventParticipant[]
 
+  dateVotes DateVote[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -30,6 +32,8 @@ model Event {
   title       String
   description String?
   date        DateTime
+
+  dateOptions DateOption[]
 
   locationName    String?
   locationAddress String?
@@ -92,6 +96,41 @@ model EventParticipant {
   updatedAt DateTime @updatedAt
 
   @@unique([eventId, userId])
+}
+
+model DateOption {
+  id           Int      @id @default(autoincrement())
+  proposedDate DateTime
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  votes DateVote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DateVote {
+  id     Int            @id @default(autoincrement())
+  status DateVoteStatus
+
+  optionId Int
+  option   DateOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([optionId, userId])
+}
+
+enum DateVoteStatus {
+  YES
+  MAYBE
+  NO
 }
 
 enum EventRole {

@@ -7,6 +7,7 @@ import eventRoutes from "./routes/event.routes";
 import taskRoutes from "./routes/task.routes";
 import expenseRoutes from "./routes/expense.routes";
 import participantRoutes from "./routes/participant.routes";
+import dateVoteRoutes from "./routes/date-vote.routes";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import cors from "cors";
 
@@ -28,7 +29,8 @@ app.use("/auth", authRoutes);
 app.use("/events", eventRoutes);
 app.use("/tasks", taskRoutes);
 app.use("/expenses", expenseRoutes);
-app.use("/participants", participantRoutes)
+app.use("/participants", participantRoutes);
+app.use("/date-votes", dateVoteRoutes);
 
 app.use(errorMiddleware);
 
