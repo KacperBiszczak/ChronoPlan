@@ -11,6 +11,35 @@ import {
 
 const router = Router();
 
+/**
+ * @swagger
+ * /date-votes/event/{eventId}:
+ *   get:
+ *     summary: Pobiera propozycje terminów wydarzenia
+ *     description: Zwraca listę propozycji terminów wraz z głosami uczestników.
+ *     tags:
+ *       - Date Votes
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia
+ *     responses:
+ *       200:
+ *         description: Lista propozycji terminów
+ *       400:
+ *         description: Nieprawidłowe ID wydarzenia
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak dostępu do głosowania tego wydarzenia
+ *       500:
+ *         description: Błąd pobierania propozycji terminów
+ */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
@@ -74,6 +103,45 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /date-votes/options:
+ *   post:
+ *     summary: Dodaje propozycję terminu
+ *     description: Dodaje nową propozycję terminu do wydarzenia. Dostępne tylko dla organizatora wydarzenia.
+ *     tags:
+ *       - Date Votes
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - eventId
+ *               - proposedDate
+ *             properties:
+ *               eventId:
+ *                 type: integer
+ *                 example: 1
+ *               proposedDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-06-20T16:00:00.000Z"
+ *     responses:
+ *       201:
+ *         description: Propozycja terminu została dodana
+ *       400:
+ *         description: Nieprawidłowe dane
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Tylko organizator może dodawać propozycje terminów
+ *       500:
+ *         description: Błąd dodawania propozycji terminu
+ */
 router.post(
   "/options",
   authMiddleware,
@@ -120,6 +188,53 @@ router.post(
   }
 );
 
+/**
+ * @swagger
+ * /date-votes/options/{optionId}/vote:
+ *   patch:
+ *     summary: Oddaje lub aktualizuje głos na termin
+ *     description: Pozwala uczestnikowi wydarzenia zagłosować na propozycję terminu. Jeśli głos już istnieje, zostanie zaktualizowany.
+ *     tags:
+ *       - Date Votes
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: optionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID propozycji terminu
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum:
+ *                   - YES
+ *                   - MAYBE
+ *                   - NO
+ *                 example: "YES"
+ *     responses:
+ *       200:
+ *         description: Głos został zapisany
+ *       400:
+ *         description: Nieprawidłowe ID propozycji terminu lub nieprawidłowy status
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Brak dostępu do głosowania tego wydarzenia
+ *       404:
+ *         description: Nie znaleziono propozycji terminu
+ *       500:
+ *         description: Błąd zapisywania głosu
+ */
 router.patch(
   "/options/:optionId/vote",
   authMiddleware,
@@ -204,6 +319,127 @@ router.patch(
   }
 );
 
+/**
+ * @swagger
+ * /date-votes/options/{optionId}/apply:
+ *   patch:
+ *     summary: Ustawia propozycję jako termin wydarzenia
+ *     description: Aktualizuje datę wydarzenia na podstawie wybranej propozycji terminu. Dostępne tylko dla organizatora.
+ *     tags:
+ *       - Date Votes
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: optionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID propozycji terminu
+ *     responses:
+ *       200:
+ *         description: Termin wydarzenia został zaktualizowany
+ *       400:
+ *         description: Nieprawidłowe ID propozycji terminu
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Tylko organizator może ustawić termin wydarzenia
+ *       404:
+ *         description: Nie znaleziono propozycji terminu
+ *       500:
+ *         description: Błąd ustawiania terminu wydarzenia
+ */
+router.patch("/options/:optionId/apply", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const optionId = Number(req.params.optionId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!optionId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID propozycji terminu",
+      });
+      return;
+    }
+
+    const option = await prisma.dateOption.findUnique({
+      where: {
+        id: optionId,
+      },
+    });
+
+    if (!option) {
+      res.status(404).json({
+        message: "Nie znaleziono propozycji terminu",
+      });
+      return;
+    }
+
+    const event = await isEventOrganizer(option.eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Tylko organizator może ustawić termin wydarzenia",
+      });
+      return;
+    }
+
+    const updatedEvent = await prisma.event.update({
+      where: {
+        id: option.eventId,
+      },
+      data: {
+        date: option.proposedDate,
+      },
+    });
+
+    res.json(updatedEvent);
+  } catch {
+    res.status(500).json({
+      message: "Błąd ustawiania terminu wydarzenia",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /date-votes/options/{optionId}:
+ *   delete:
+ *     summary: Usuwa propozycję terminu
+ *     description: Usuwa propozycję terminu wraz z oddanymi głosami. Dostępne tylko dla organizatora wydarzenia.
+ *     tags:
+ *       - Date Votes
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: optionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID propozycji terminu
+ *     responses:
+ *       200:
+ *         description: Propozycja terminu została usunięta
+ *       400:
+ *         description: Nieprawidłowe ID propozycji terminu
+ *       401:
+ *         description: Brak autoryzacji
+ *       403:
+ *         description: Tylko organizator może usuwać propozycje terminów
+ *       404:
+ *         description: Nie znaleziono propozycji terminu
+ *       500:
+ *         description: Błąd usuwania propozycji terminu
+ */
 router.delete("/options/:optionId", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
