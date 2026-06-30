@@ -5,6 +5,17 @@ import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import { createExpenseSchema, updateExpenseSchema } from "../validators/expense.validator";
 
+const expenseInclude = {
+  paidBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+    },
+  },
+};
+
 const router = Router();
 
 /**
@@ -41,11 +52,28 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
   try {
     const user = (req as any).user;
     const userId = Number(user?.userId);
-    const { title, amount, eventId } = req.body;
+    const { title, amount, eventId, paidById } = req.body;
 
     if (!userId) {
       res.status(401).json({
         message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    const payerId = paidById ?? userId;
+
+    const payerParticipant = await prisma.eventParticipant.findFirst({
+      where: {
+        eventId,
+        userId: payerId,
+        status: "ACCEPTED",
+      },
+    });
+
+    if (!payerParticipant) {
+      res.status(400).json({
+        message: "Osoba płacąca musi być uczestnikiem wydarzenia",
       });
       return;
     }
@@ -64,7 +92,9 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
         title,
         amount,
         eventId,
+        paidById: payerId,
       },
+      include: expenseInclude,
     });
 
     res.status(201).json(expense);
@@ -123,6 +153,7 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
     where: {
       eventId,
     },
+    include: expenseInclude,
     orderBy: {
       createdAt: "asc",
     },
@@ -340,7 +371,24 @@ router.patch(
         return;
       }
 
-      const { title, amount } = req.body;
+      const { title, amount, paidById  } = req.body;
+
+      if (paidById !== undefined && paidById !== null) {
+        const payerParticipant = await prisma.eventParticipant.findFirst({
+          where: {
+            eventId: expense.eventId,
+            userId: paidById,
+            status: "ACCEPTED",
+          },
+        });
+
+        if (!payerParticipant) {
+          res.status(400).json({
+            message: "Osoba płacąca musi być uczestnikiem wydarzenia",
+          });
+          return;
+        }
+      }
 
       const updatedExpense = await prisma.expense.update({
         where: {
@@ -349,7 +397,9 @@ router.patch(
         data: {
           ...(title !== undefined ? { title } : {}),
           ...(amount !== undefined ? { amount } : {}),
+          paidById,
         },
+        include: expenseInclude,
       });
 
       res.json(updatedExpense);

@@ -14,9 +14,12 @@ export const createExpenseSchema = z.object({
     .number("ID wydarzenia musi być liczbą")
     .int("ID wydarzenia musi być liczbą całkowitą")
     .positive("ID wydarzenia musi być dodatnie"),
+
+  paidById: z.number().int().positive().optional().nullable(),
 });
 
 export const updateExpenseSchema = z.object({
   title: z.string().min(1, "Nazwa wydatku jest wymagana").optional(),
   amount: z.number().positive("Kwota musi być większa od 0").optional(),
+  paidById: z.number().int().positive().optional().nullable(),
 });
