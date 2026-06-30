@@ -2,6 +2,7 @@ import 'package:chronoplan_frontend/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import 'location_picker_screen.dart';
 
 import '../services/event_service.dart';
 
@@ -144,6 +145,26 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
     setState(() {
       selectedTime = pickedTime;
+    });
+  }
+
+  Future<void> pickLocationFromMap() async {
+    final currentLatitude = parseOptionalDouble(latitudeController.text);
+    final currentLongitude = parseOptionalDouble(longitudeController.text);
+
+    final result = await context.push<PickedLocation>(
+      '/location-picker',
+      extra: {
+        'latitude': currentLatitude,
+        'longitude': currentLongitude,
+      },
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      latitudeController.text = result.latitude.toStringAsFixed(6);
+      longitudeController.text = result.longitude.toStringAsFixed(6);
     });
   }
 
@@ -315,6 +336,12 @@ class _EditEventScreenState extends State<EditEventScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: pickLocationFromMap,
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Wybierz punkt na mapie'),
           ),
           const SizedBox(height: 16),
           Card(
