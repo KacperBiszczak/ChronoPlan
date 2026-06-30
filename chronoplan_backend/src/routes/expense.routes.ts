@@ -192,30 +192,184 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
  *         description: Nie znaleziono wydarzenia
  */
 router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
-  const user = (req as any).user;
-  const eventId = Number(req.params.eventId);
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
 
-  const event = await canAccessEvent(eventId, user.userId);
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
 
-  if (!event) {
-    res.status(404).json({
-      message: "Nie znaleziono wydarzenia",
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await canAccessEvent(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Brak dostępu do budżetu tego wydarzenia",
+      });
+      return;
+    }
+
+    const participants = await prisma.eventParticipant.findMany({
+      where: {
+        eventId,
+        status: "ACCEPTED",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
     });
-    return;
+
+    const expenses = await prisma.expense.findMany({
+      where: {
+        eventId,
+      },
+      include: expenseInclude,
+    });
+
+    const totalExpenses = expenses.reduce((sum, expense) => {
+      return sum + expense.amount;
+    }, 0);
+
+    const paidExpenses = expenses.filter((expense) => expense.paidById !== null);
+
+    const settledExpensesTotal = paidExpenses.reduce((sum, expense) => {
+      return sum + expense.amount;
+    }, 0);
+
+    const unassignedExpensesTotal = expenses
+      .filter((expense) => expense.paidById === null)
+      .reduce((sum, expense) => {
+        return sum + expense.amount;
+      }, 0);
+
+    if (participants.length === 0) {
+      res.json({
+        totalExpenses,
+        settledExpensesTotal,
+        unassignedExpensesTotal,
+        participantCount: 0,
+        perPersonShare: 0,
+        balances: [],
+        settlements: [],
+      });
+      return;
+    }
+
+    const perPersonShare = settledExpensesTotal / participants.length;
+
+    const balances = participants.map((participant) => {
+      const paid = paidExpenses
+        .filter((expense) => expense.paidById === participant.userId)
+        .reduce((sum, expense) => {
+          return sum + expense.amount;
+        }, 0);
+
+      const balance = paid - perPersonShare;
+
+      return {
+        user: participant.user,
+        paid,
+        share: perPersonShare,
+        balance,
+      };
+    });
+
+    const creditors = balances
+      .filter((item) => item.balance > 0.01)
+      .map((item) => ({
+        user: item.user,
+        amount: item.balance,
+      }));
+
+    const debtors = balances
+      .filter((item) => item.balance < -0.01)
+      .map((item) => ({
+        user: item.user,
+        amount: Math.abs(item.balance),
+      }));
+
+    const settlements: {
+      from: {
+        id: number;
+        name: string;
+        email: string;
+        avatarUrl: string | null;
+      };
+      to: {
+        id: number;
+        name: string;
+        email: string;
+        avatarUrl: string | null;
+      };
+      amount: number;
+    }[] = [];
+
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+
+    while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+      const debtor = debtors[debtorIndex];
+      const creditor = creditors[creditorIndex];
+
+      if (!debtor || !creditor) {
+        break;
+      }
+
+      const amount = Math.min(debtor.amount, creditor.amount);
+
+      settlements.push({
+        from: debtor.user,
+        to: creditor.user,
+        amount,
+      });
+
+      debtor.amount -= amount;
+      creditor.amount -= amount;
+
+      if (debtor.amount <= 0.01) {
+        debtorIndex += 1;
+      }
+
+      if (creditor.amount <= 0.01) {
+        creditorIndex += 1;
+      }
+    }
+
+    res.json({
+      totalExpenses,
+      settledExpensesTotal,
+      unassignedExpensesTotal,
+      participantCount: participants.length,
+      perPersonShare,
+      balances,
+      settlements,
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd podsumowania wydatków",
+    });
   }
-
-  const result = await prisma.expense.aggregate({
-    where: {
-      eventId,
-    },
-    _sum: {
-      amount: true,
-    },
-  });
-
-  res.json({
-    totalExpenses: result._sum.amount ?? 0,
-  });
 });
 
 /**
