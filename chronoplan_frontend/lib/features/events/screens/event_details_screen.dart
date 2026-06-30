@@ -403,6 +403,21 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 },
               ),
             ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.how_to_vote_outlined, color: Colors.blue),
+                title: const Text('Głosowanie nad terminem'),
+                subtitle: const Text('Propozycje terminów i głosy uczestników'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/events/${widget.eventId}/date-votes');
+
+                  if (!mounted) return;
+
+                  refreshEvent();
+                },
+              ),
+            ),
           ],
         );
       },
