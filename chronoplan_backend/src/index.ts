@@ -9,6 +9,7 @@ import expenseRoutes from "./routes/expense.routes";
 import participantRoutes from "./routes/participant.routes";
 import dateVoteRoutes from "./routes/date-vote.routes";
 import chatRoutes from "./routes/chat.routes";
+import googleCalendarRoutes from "./routes/google-calendar.routes";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import cors from "cors";
 
@@ -33,6 +34,7 @@ app.use("/expenses", expenseRoutes);
 app.use("/participants", participantRoutes);
 app.use("/date-votes", dateVoteRoutes);
 app.use("/chat", chatRoutes);
+app.use("/google-calendar", googleCalendarRoutes);
 
 app.use(errorMiddleware);
 
