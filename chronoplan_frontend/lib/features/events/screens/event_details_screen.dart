@@ -13,6 +13,7 @@ import '../../../core/utils/app_snack_bar.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/services/notification_service.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -571,6 +572,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     const SizedBox(height: 16),
                     buildEventMap(event),
                     const SizedBox(height: 16),
+                    buildNotificationSection(event),
+                    const SizedBox(height: 16),
                   ],
                 );
               },
@@ -578,6 +581,121 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> scheduleReminder(EventModel event) async {
+    final reminderDate = event.date.subtract(
+      const Duration(hours: 1),
+    );
+
+    if (reminderDate.isBefore(DateTime.now())) {
+      AppSnackBar.info(
+        context,
+        'Nie można ustawić przypomnienia — wydarzenie zaczyna się za mniej niż godzinę lub już minęło',
+      );
+      return;
+    }
+
+    try {
+      await NotificationService.scheduleEventReminder(
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDate: event.date,
+      );
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Przypomnienie zostało ustawione',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się ustawić przypomnienia',
+      );
+    }
+  }
+
+  Future<void> cancelReminder(EventModel event) async {
+    try {
+      await NotificationService.cancelEventReminder(event.id);
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Przypomnienie zostało anulowane',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się anulować przypomnienia',
+      );
+    }
+  }
+
+  Widget buildNotificationSection(EventModel event) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_outlined,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Powiadomienia',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Możesz ustawić lokalne przypomnienie godzinę przed rozpoczęciem wydarzenia.',
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      scheduleReminder(event);
+                    },
+                    icon: const Icon(Icons.notifications_outlined),
+                    label: const Text('Przypomnij'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      cancelReminder(event);
+                    },
+                    icon: const Icon(Icons.notifications_off_outlined),
+                    label: const Text('Anuluj'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
