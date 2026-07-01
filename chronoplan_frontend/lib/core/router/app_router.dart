@@ -16,6 +16,7 @@ import '../../features/events/screens/event_details_screen.dart';
 import '../../features/events/screens/edit_event_screen.dart';
 import '../../features/events/screens/location_picker_screen.dart';
 import '../../features/date_votes/screens/date_voting_screen.dart';
+import '../../features/chat/screens/chat_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -110,6 +111,14 @@ final appRouter = GoRouter(
         final eventId = int.parse(state.pathParameters['id']!);
 
         return DateVotingScreen(eventId: eventId);
+      },
+    ),
+    GoRoute(
+      path: '/events/:id/chat',
+      builder: (context, state) {
+        final eventId = int.parse(state.pathParameters['id']!);
+
+        return ChatScreen(eventId: eventId);
       },
     ),
   ],

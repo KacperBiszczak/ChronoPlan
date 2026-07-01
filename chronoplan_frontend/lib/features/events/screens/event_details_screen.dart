@@ -418,6 +418,21 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 },
               ),
             ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.chat_bubble_outline, color: Colors.blue),
+                title: const Text('Czat'),
+                subtitle: const Text('Wiadomości uczestników wydarzenia'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/events/${widget.eventId}/chat');
+
+                  if (!mounted) return;
+
+                  refreshEvent();
+                },
+              ),
+            ),
           ],
         );
       },
