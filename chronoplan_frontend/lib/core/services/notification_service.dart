@@ -1,12 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../router/root_navigator_key.dart';
+
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+      
+  static void _handleNotificationPayload(String? payload) {
+    if (payload == null || payload.isEmpty) {
+      return;
+    }
+
+    final context = rootNavigatorKey.currentContext;
+
+    if (context == null) {
+      return;
+    }
+
+    context.go(payload);
+  }
 
   static Future<void> init() async {
     await _configureLocalTimeZone();
@@ -28,6 +44,9 @@ class NotificationService {
 
     await _plugin.initialize(
       settings: settings,
+      onDidReceiveNotificationResponse: (response) {
+        _handleNotificationPayload(response.payload);
+      },
     );
 
     await requestPermissions();
