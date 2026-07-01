@@ -15,6 +15,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/services/calendar_integration_service.dart';
+import '../../../core/services/google_calendar_service.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -34,6 +35,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final taskService = TaskService();
   final expenseService = ExpenseService();
   final participantService = ParticipantService();
+  final googleCalendarService = GoogleCalendarService();
 
   int? currentUserId;
 
@@ -731,7 +733,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Kalendarz',
+                  'Google Calendar',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -741,23 +743,91 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Dodaj wydarzenie do Google Calendar z uzupełnioną datą, nazwą, opisem i lokalizacją.',
+              'Połącz konto Google i synchronizuj wydarzenie z kalendarzem.',
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  addToGoogleCalendar(event);
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Dodaj do Google Calendar'),
+
+            if (event.googleCalendarSyncedAt != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Ostatnia synchronizacja: ${AppFormatters.dateTime(event.googleCalendarSyncedAt!)}',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 13,
+                ),
               ),
+            ],
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: connectGoogleCalendar,
+                    icon: const Icon(Icons.link),
+                    label: const Text('Połącz'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      syncEventWithGoogleCalendar(event);
+                    },
+                    icon: const Icon(Icons.sync),
+                    label: const Text('Synchronizuj'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> connectGoogleCalendar() async {
+    try {
+      await googleCalendarService.connectGoogleCalendar();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Otworzono autoryzację Google Calendar',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się połączyć Google Calendar',
+      );
+    }
+  }
+
+  Future<void> syncEventWithGoogleCalendar(EventModel event) async {
+    try {
+      await googleCalendarService.syncEvent(event.id);
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Wydarzenie zsynchronizowane z Google Calendar',
+      );
+
+      await refreshEvent();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się zsynchronizować wydarzenia',
+      );
+    }
   }
 }
 

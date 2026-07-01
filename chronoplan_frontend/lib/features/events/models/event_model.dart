@@ -10,6 +10,9 @@ class EventModel {
   final double? latitude;
   final double? longitude;
 
+  final String? googleCalendarEventId;
+  final DateTime? googleCalendarSyncedAt;
+
   EventModel({
     required this.id,
     required this.title,
@@ -20,6 +23,8 @@ class EventModel {
     required this.locationAddress,
     required this.latitude,
     required this.longitude,
+    required this.googleCalendarEventId,
+    required this.googleCalendarSyncedAt,
   });
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +38,10 @@ class EventModel {
       locationAddress: json['locationAddress'],
       latitude: json['latitude'] == null ? null : (json['latitude'] as num).toDouble(),
       longitude: json['longitude'] == null ? null : (json['longitude'] as num).toDouble(),
+      googleCalendarEventId: json['googleCalendarEventId'],
+      googleCalendarSyncedAt: json['googleCalendarSyncedAt'] == null
+          ? null
+          : DateTime.parse(json['googleCalendarSyncedAt']).toLocal(),
     );
   }
 }
