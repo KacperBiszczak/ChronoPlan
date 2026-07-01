@@ -7,6 +7,8 @@ import '../services/expense_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import '../../participants/models/participant_model.dart';
+import '../../participants/services/participant_service.dart';
 
 enum ExpenseSort {
   defaultOrder,
@@ -29,6 +31,7 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   final expenseService = ExpenseService();
+  final participantService = ParticipantService();
   final eventService = EventService();
   final authService = AuthService();
 
@@ -102,9 +105,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> showCreateExpenseDialog() async {
+    final participants = await loadAcceptedParticipants();
+
+    if (!mounted) return;
+    
     final titleController = TextEditingController();
     final amountController = TextEditingController();
 
+    int? selectedPaidById;
     bool isLoading = false;
 
     final created = await showDialog<bool>(
@@ -142,6 +150,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   title: title,
                   amount: amount,
                   eventId: widget.eventId,
+                  paidById: selectedPaidById,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -185,6 +194,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         border: OutlineInputBorder(),
                         suffixText: 'zł',
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int?>(
+                      initialValue: selectedPaidById,
+                      decoration: const InputDecoration(
+                        labelText: 'Kto zapłacił?',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Ja / aktualny użytkownik'),
+                        ),
+                        ...participants.map(
+                          (participant) {
+                            final user = participant.user;
+
+                            return DropdownMenuItem<int?>(
+                              value: participant.userId,
+                              child: Text(user?.name ?? user?.email ?? 'Uczestnik'),
+                            );
+                          },
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              setDialogState(() {
+                                selectedPaidById = value;
+                              });
+                            },
                     ),
                   ],
                 ),
@@ -233,11 +274,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> showEditExpenseDialog(ExpenseModel expense) async {
+    final participants = await loadAcceptedParticipants();
+
+    if (!mounted) return;
+
     final titleController = TextEditingController(text: expense.title);
     final amountController = TextEditingController(
       text: expense.amount.toStringAsFixed(2),
     );
 
+    int? selectedPaidById = expense.paidById;
     bool isLoading = false;
 
     final updated = await showDialog<bool>(
@@ -275,6 +321,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   id: expense.id,
                   title: title,
                   amount: amount,
+                  paidById: selectedPaidById,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -318,6 +365,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         border: OutlineInputBorder(),
                         suffixText: 'zł',
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int?>(
+                      initialValue: selectedPaidById,
+                      decoration: const InputDecoration(
+                        labelText: 'Kto zapłacił?',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Brak przypisanej osoby'),
+                        ),
+                        ...participants.map(
+                          (participant) {
+                            final user = participant.user;
+
+                            return DropdownMenuItem<int?>(
+                              value: participant.userId,
+                              child: Text(user?.name ?? user?.email ?? 'Uczestnik'),
+                            );
+                          },
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              setDialogState(() {
+                                selectedPaidById = value;
+                              });
+                            },
                     ),
                   ],
                 ),
@@ -491,7 +570,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(AppFormatters.amount(expense.amount)),
+        subtitle: Text(
+          expense.paidBy != null
+              ? 'Zapłacił: ${expense.paidBy!.name}'
+              : 'Brak osoby płacącej',
+        ),
       trailing: canManageExpenses
           ? Row(
               mainAxisSize: MainAxisSize.min,
@@ -567,6 +650,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         canManageExpenses = false;
       });
     }
+  }
+
+  Future<List<ParticipantModel>> loadAcceptedParticipants() async {
+    final participants = await participantService.getParticipantsByEvent(
+      widget.eventId,
+    );
+
+    return participants
+        .where((participant) => participant.status == 'ACCEPTED')
+        .toList();
   }
 
   @override
