@@ -43,7 +43,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   bool canManageExpenses = false;
 
   late Future<List<ExpenseModel>> expensesFuture;
-  late Future<double> summaryFuture;
+  late Future<ExpenseSummaryModel> summaryFuture;
 
   @override
   void dispose() {
@@ -60,12 +60,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void loadData() {
     expensesFuture = expenseService.getExpensesByEvent(widget.eventId);
-    summaryFuture = expenseService.getExpenseSummary(widget.eventId);
+    summaryFuture = expenseService.getExpenseSummaryDetails(widget.eventId);
   }
 
   Future<void> refreshExpenses() async {
     final expenses = expenseService.getExpensesByEvent(widget.eventId);
-    final summary = expenseService.getExpenseSummary(widget.eventId);
+    final summary = expenseService.getExpenseSummaryDetails(widget.eventId);
 
     setState(() {
       expensesFuture = expenses;
@@ -102,6 +102,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         );
         return filteredExpenses;
     }
+  }
+
+  Color getBalanceColor(double balance) {
+    if (balance > 0.01) {
+      return Colors.green;
+    }
+
+    if (balance < -0.01) {
+      return Colors.red;
+    }
+
+    return Colors.grey;
+  }
+
+  String formatBalance(double balance) {
+    if (balance > 0.01) {
+      return '+${AppFormatters.amount(balance)}';
+    }
+
+    if (balance < -0.01) {
+      return '-${AppFormatters.amount(balance.abs())}';
+    }
+
+    return AppFormatters.amount(0);
   }
 
   Future<void> showCreateExpenseDialog() async {
@@ -515,43 +539,258 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
+  Widget buildExpenseUserAvatar(ExpenseUserModel user) {
+    final avatarUrl = user.avatarUrl;
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 16,
+        backgroundColor: Colors.blue.shade100,
+        backgroundImage: NetworkImage(avatarUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      child: Text(
+        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Widget buildSummaryCard() {
-    return FutureBuilder<double>(
+    return FutureBuilder<ExpenseSummaryModel>(
       future: summaryFuture,
       builder: (context, snapshot) {
-        final total = snapshot.data ?? 0;
+        final summary = snapshot.data;
 
-        return Card(
-          color: Colors.blue,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.blue,
-                  child: Icon(Icons.payments),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'Suma wydatków',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                        ),
-                  ),
-                ),
-                Text(
-                  AppFormatters.amount(total),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+        if (snapshot.connectionState == ConnectionState.waiting && summary == null) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
             ),
-          ),
+          );
+        }
+
+        if (snapshot.hasError || summary == null) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Nie udało się pobrać podsumowania budżetu',
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              color: Colors.blue,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.blue,
+                      child: Icon(Icons.payments),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Suma wydatków',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                            ),
+                      ),
+                    ),
+                    Text(
+                      AppFormatters.amount(summary.totalExpenses),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Rozliczenie',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Liczba uczestników: ${summary.participantCount}',
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Udział na osobę: ${AppFormatters.amount(summary.perPersonShare)}',
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Wydatki przypisane do płacącego: ${AppFormatters.amount(summary.settledExpensesTotal)}',
+                    ),
+                    if (summary.unassignedExpensesTotal > 0) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Uwaga: ${AppFormatters.amount(summary.unassignedExpensesTotal)} nie ma przypisanej osoby płacącej.',
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Saldo uczestników',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (summary.balances.isEmpty)
+                      const Text('Brak sald do pokazania.')
+                    else
+                      ...summary.balances.map(
+                        (balance) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                buildExpenseUserAvatar(balance.user),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    balance.user.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      formatBalance(balance.balance),
+                                      style: TextStyle(
+                                        color: getBalanceColor(balance.balance),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'zapłacił ${AppFormatters.amount(balance.paid)}',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Kto komu ile wisi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (summary.settlements.isEmpty)
+                      const Text(
+                        'Brak rozliczeń do wykonania.',
+                      )
+                    else
+                      ...summary.settlements.map(
+                        (settlement) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                buildExpenseUserAvatar(settlement.from),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${settlement.from.name} → ${settlement.to.name}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  AppFormatters.amount(settlement.amount),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -570,10 +809,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           expense.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(
-          expense.paidBy != null
-              ? 'Zapłacił: ${expense.paidBy!.name}'
-              : 'Brak osoby płacącej',
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(AppFormatters.amount(expense.amount)),
+            const SizedBox(height: 4),
+            Text(
+              expense.paidBy != null
+                  ? 'Zapłacił: ${expense.paidBy!.name}'
+                  : 'Brak osoby płacącej',
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
       trailing: canManageExpenses
           ? Row(
