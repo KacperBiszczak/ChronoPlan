@@ -24,7 +24,8 @@ model User {
 
   paidExpenses Expense[] @relation("ExpensePayer")
 
-  chatMessages ChatMessage[]
+  chatMessages             ChatMessage[]
+  googleCalendarConnection GoogleCalendarConnection?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -42,6 +43,9 @@ model Event {
   locationAddress String?
   latitude        Float?
   longitude       Float?
+
+  googleCalendarEventId  String?
+  googleCalendarSyncedAt DateTime?
 
   creatorId Int
   creator   User @relation(fields: [creatorId], references: [id])
@@ -144,6 +148,22 @@ model ChatMessage {
 
   authorId Int
   author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GoogleCalendarConnection {
+  id Int @id @default(autoincrement())
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken  String?
+  refreshToken String?
+  scope        String?
+  tokenType    String?
+  expiryDate   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
