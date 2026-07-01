@@ -14,6 +14,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/calendar_integration_service.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
@@ -574,6 +575,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     const SizedBox(height: 16),
                     buildNotificationSection(event),
                     const SizedBox(height: 16),
+                    buildCalendarSection(event),
+                    const SizedBox(height: 16),
                   ],
                 );
               },
@@ -692,6 +695,64 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> addToGoogleCalendar(EventModel event) async {
+    try {
+      await CalendarIntegrationService.openGoogleCalendar(event);
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się otworzyć Google Calendar',
+      );
+    }
+  }
+
+  Widget buildCalendarSection(EventModel event) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_month_outlined,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Kalendarz',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Dodaj wydarzenie do Google Calendar z uzupełnioną datą, nazwą, opisem i lokalizacją.',
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  addToGoogleCalendar(event);
+                },
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Dodaj do Google Calendar'),
+              ),
             ),
           ],
         ),
