@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/app_snack_bar.dart';
@@ -38,20 +40,35 @@ class _ChatScreenState extends State<ChatScreen> {
   late Future<ChatScreenData> chatFuture;
 
   bool isSending = false;
+  Timer? refreshTimer;
 
   @override
   void initState() {
     super.initState();
 
     chatFuture = loadChatData();
+    startAutoRefresh();
   }
 
   @override
   void dispose() {
+    refreshTimer?.cancel();
+
     messageController.dispose();
     scrollController.dispose();
 
     super.dispose();
+  }
+
+  void startAutoRefresh() {
+    refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) {
+        if (!mounted || isSending) return;
+
+        refreshChat();
+      },
+    );
   }
 
   Future<ChatScreenData> loadChatData() async {
@@ -72,6 +89,19 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     await future;
+  }
+
+  void scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+      if (!scrollController.hasClients) return;
+
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> sendMessage() async {
@@ -97,15 +127,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (!mounted) return;
 
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (!scrollController.hasClients) return;
+      scrollToBottom();
 
-        scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      });
     } catch (e) {
       if (!mounted) return;
 
@@ -352,6 +375,13 @@ class _ChatScreenState extends State<ChatScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Czat wydarzenia'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Odśwież',
+                onPressed: refreshChat,
+              ),
+            ],
           ),
           body: Column(
             children: [
