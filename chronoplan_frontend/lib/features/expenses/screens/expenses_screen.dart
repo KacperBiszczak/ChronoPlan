@@ -564,6 +564,43 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
+  Widget buildOptionalExpenseUserAvatar(ExpenseUserModel? user) {
+    if (user == null) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: Colors.grey.shade300,
+        foregroundColor: Colors.grey.shade700,
+        child: const Icon(
+          Icons.person_off_outlined,
+          size: 16,
+        ),
+      );
+    }
+
+    final avatarUrl = user.avatarUrl;
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 14,
+        backgroundColor: Colors.blue.shade100,
+        backgroundImage: NetworkImage(avatarUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      child: Text(
+        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Widget buildSummaryCard() {
     return FutureBuilder<ExpenseSummaryModel>(
       future: summaryFuture,
@@ -810,21 +847,29 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppFormatters.amount(expense.amount)),
-            const SizedBox(height: 4),
-            Text(
-              expense.paidBy != null
-                  ? 'Zapłacił: ${expense.paidBy!.name}'
-                  : 'Brak osoby płacącej',
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 13,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppFormatters.amount(expense.amount)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              buildOptionalExpenseUserAvatar(expense.paidBy),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  expense.paidBy != null
+                      ? 'Zapłacił: ${expense.paidBy!.name}'
+                      : 'Brak osoby płacącej',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 13,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
+      ),
       trailing: canManageExpenses
           ? Row(
               mainAxisSize: MainAxisSize.min,
