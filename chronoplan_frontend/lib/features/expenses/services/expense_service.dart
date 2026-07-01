@@ -13,15 +13,22 @@ class ExpenseService {
   }
 
   Future<double> getExpenseSummary(int eventId) async {
+    final summary = await getExpenseSummaryDetails(eventId);
+
+    return summary.totalExpenses;
+  }
+
+  Future<ExpenseSummaryModel> getExpenseSummaryDetails(int eventId) async {
     final response = await _dio.get('/expenses/event/$eventId/summary');
 
-    return (response.data['totalExpenses'] as num).toDouble();
+    return ExpenseSummaryModel.fromJson(response.data);
   }
 
   Future<ExpenseModel> createExpense({
     required String title,
     required double amount,
     required int eventId,
+    int? paidById,
   }) async {
     final response = await _dio.post(
       '/expenses',
@@ -29,6 +36,7 @@ class ExpenseService {
         'title': title,
         'amount': amount,
         'eventId': eventId,
+        'paidById': paidById,
       },
     );
 
@@ -39,12 +47,14 @@ class ExpenseService {
     required int id,
     required String title,
     required double amount,
+    int? paidById,
   }) async {
     final response = await _dio.patch(
       '/expenses/$id',
       data: {
         'title': title,
         'amount': amount,
+        'paidById': paidById,
       },
     );
 
