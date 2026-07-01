@@ -24,6 +24,8 @@ model User {
 
   paidExpenses Expense[] @relation("ExpensePayer")
 
+  chatMessages ChatMessage[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -46,6 +48,8 @@ model Event {
 
   tasks    Task[]
   expenses Expense[]
+
+  chatMessages ChatMessage[]
 
   participants EventParticipant[]
 
@@ -129,6 +133,20 @@ model DateVote {
   updatedAt DateTime @updatedAt
 
   @@unique([optionId, userId])
+}
+
+model ChatMessage {
+  id      Int    @id @default(autoincrement())
+  content String
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum DateVoteStatus {
