@@ -141,7 +141,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-  Future<void> deleteEvent() async {
+  Future<void> deleteEvent(EventModel event) async {
     final confirmed = await AppConfirmDialog.show(
       context,
       title: 'Usuń wydarzenie',
@@ -155,7 +155,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     if (!mounted || !confirmed) return;
 
     try {
-      await eventService.deleteEvent(widget.eventId);
+      if (event.googleCalendarEventId != null) {
+        try {
+          await googleCalendarService.deleteSyncedEvent(event.id);
+        } catch (_) {
+          // Jeśli usuwanie z Google Calendar się nie uda,
+          // nie blokujemy usunięcia wydarzenia z ChronoPlan.
+        }
+      }
+
+      await eventService.deleteEvent(event.id);
 
       if (!mounted) return;
 
@@ -476,9 +485,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   tooltip: 'Edytuj wydarzenie',
                 ),
                 IconButton(
-                  onPressed: deleteEvent,
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'Usuń wydarzenie',
+                  onPressed: () {
+                    deleteEvent(event);
+                  },
                 ),
               ],
               if (event != null && !isOrganizer(event))
