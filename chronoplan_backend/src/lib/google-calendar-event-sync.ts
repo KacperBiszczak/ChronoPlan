@@ -18,6 +18,53 @@ const getOAuthClient = () => {
   );
 };
 
+type UnknownRecord = Record<string, unknown>;
+
+const isObject = (value: unknown): value is UnknownRecord => {
+  return typeof value === "object" && value !== null;
+};
+
+const getGoogleErrorStatus = (error: unknown) => {
+  if (!isObject(error)) return null;
+
+  const code = error.code;
+
+  if (typeof code === "number") {
+    return code;
+  }
+
+  const response = error.response;
+
+  if (isObject(response) && typeof response.status === "number") {
+    return response.status;
+  }
+
+  return null;
+};
+
+const isGoogleCalendarEventNotFoundError = (error: unknown) => {
+  const status = getGoogleErrorStatus(error);
+
+  if (status === 404) {
+    return true;
+  }
+
+  if (!isObject(error)) {
+    return false;
+  }
+
+  const message =
+    typeof error.message === "string"
+      ? error.message
+      : "";
+
+  return (
+    message.includes("Not Found") ||
+    message.includes("notFound") ||
+    message.includes("Resource has been deleted")
+  );
+};
+
 export const updateExistingGoogleCalendarEventForEvent = async (
   eventId: number,
 ) => {
@@ -88,29 +135,53 @@ export const updateExistingGoogleCalendarEventForEvent = async (
     event.locationAddress,
   ].filter((value): value is string => Boolean(value && value.trim().length > 0));
 
-  await calendar.events.update({
-    calendarId: "primary",
-    eventId: event.googleCalendarEventId,
-    requestBody: {
-      summary: event.title,
-      description: event.description ?? "Wydarzenie utworzone w ChronoPlan",
-      location: locationParts.join(", "),
-      start: {
-        dateTime: event.date.toISOString(),
-      },
-      end: {
-        dateTime: new Date(
-          event.date.getTime() + 60 * 60 * 1000,
-        ).toISOString(),
-      },
+  const googleEvent = {
+    summary: event.title,
+    description: event.description ?? "Wydarzenie utworzone w ChronoPlan",
+    location: locationParts.join(", "),
+    start: {
+      dateTime: event.date.toISOString(),
     },
-  });
+    end: {
+      dateTime: new Date(
+        event.date.getTime() + 60 * 60 * 1000,
+      ).toISOString(),
+    },
+  };
+
+  let googleCalendarEventId = event.googleCalendarEventId;
+
+  try {
+    await calendar.events.update({
+      calendarId: "primary",
+      eventId: googleCalendarEventId,
+      requestBody: googleEvent,
+    });
+  } catch (error) {
+    if (!isGoogleCalendarEventNotFoundError(error)) {
+      throw error;
+    }
+
+    const createdEvent = await calendar.events.insert({
+      calendarId: "primary",
+      requestBody: googleEvent,
+    });
+
+    const createdGoogleCalendarEventId = createdEvent.data.id;
+
+    if (!createdGoogleCalendarEventId) {
+      return false;
+    }
+
+    googleCalendarEventId = createdGoogleCalendarEventId;
+  }
 
   await prisma.event.update({
     where: {
       id: event.id,
     },
     data: {
+      googleCalendarEventId,
       googleCalendarSyncedAt: new Date(),
     },
   });
