@@ -959,6 +959,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   }
 
   Future<void> disconnectGoogleCalendar() async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Odłącz Google Calendar',
+      message:
+          'Czy na pewno chcesz odłączyć konto Google Calendar? Powiązania Google zostaną usunięte z Twoich wydarzeń w ChronoPlan.',
+      confirmText: 'Odłącz',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
     try {
       await googleCalendarService.disconnectGoogleCalendar();
 
@@ -1018,6 +1030,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   }
 
   Future<void> deleteEventFromGoogleCalendar(EventModel event) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usuń z Google Calendar',
+      message:
+          'Czy na pewno chcesz usunąć to wydarzenie z Google Calendar? Wydarzenie w ChronoPlan zostanie zachowane.',
+      confirmText: 'Usuń z Google',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
     try {
       await googleCalendarService.deleteSyncedEvent(event.id);
 

@@ -254,10 +254,16 @@ export const deleteExistingGoogleCalendarEventForEvent = async (
     auth: oauthClient,
   });
 
-  await calendar.events.delete({
-    calendarId: "primary",
-    eventId: event.googleCalendarEventId,
-  });
+  try {
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: event.googleCalendarEventId,
+    });
+  } catch (error) {
+    if (!isGoogleCalendarEventNotFoundError(error)) {
+      throw error;
+    }
+  }
 
   await prisma.event.update({
     where: {

@@ -681,10 +681,19 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
       auth: oauthClient,
     });
 
-    await calendar.events.delete({
-      calendarId: "primary",
-      eventId: event.googleCalendarEventId,
-    });
+    try {
+      await calendar.events.delete({
+        calendarId: "primary",
+        eventId: event.googleCalendarEventId,
+      });
+    } catch (error) {
+      if (!isGoogleCalendarEventNotFoundError(error)) {
+        throw error;
+      }
+
+      // Jeśli wydarzenia już nie ma w Google Calendar,
+      // traktujemy to jak poprawne usunięcie i czyścimy powiązanie.
+    }
 
     const updatedEvent = await prisma.event.update({
       where: {
