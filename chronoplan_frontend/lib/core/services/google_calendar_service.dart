@@ -35,6 +35,10 @@ class GoogleCalendarService {
   Future<void> syncEvent(int eventId) async {
     await _dio.post('/google-calendar/sync-event/$eventId');
   }
+  
+  Future<void> deleteSyncedEvent(int eventId) async {
+    await _dio.delete('/google-calendar/delete-event/$eventId');
+  }
 
   Future<void> disconnectGoogleCalendar() async {
     await _dio.delete('/google-calendar/disconnect');

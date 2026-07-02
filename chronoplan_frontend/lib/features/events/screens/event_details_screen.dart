@@ -821,6 +821,20 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         ),
                       ),
                     ],
+
+                    if (isConnected && event.googleCalendarEventId != null) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            deleteEventFromGoogleCalendar(event);
+                          },
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Usuń wydarzenie z Google Calendar'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -904,6 +918,29 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         context,
         e,
         fallback: 'Nie udało się odłączyć Google Calendar',
+      );
+    }
+  }
+
+  Future<void> deleteEventFromGoogleCalendar(EventModel event) async {
+    try {
+      await googleCalendarService.deleteSyncedEvent(event.id);
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Wydarzenie zostało usunięte z Google Calendar',
+      );
+
+      await refreshEvent();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć wydarzenia z Google Calendar',
       );
     }
   }

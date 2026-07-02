@@ -386,4 +386,121 @@ router.delete("/disconnect", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /google-calendar/delete-event/{eventId}:
+ *   delete:
+ *     summary: Usuwa powiązane wydarzenie z Google Calendar
+ *     tags:
+ *       - Google Calendar
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await isEventOrganizer(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Tylko organizator może usunąć wydarzenie z Google Calendar",
+      });
+      return;
+    }
+
+    if (!event.googleCalendarEventId) {
+      res.status(400).json({
+        message: "Wydarzenie nie jest zsynchronizowane z Google Calendar",
+      });
+      return;
+    }
+
+    const connection = await prisma.googleCalendarConnection.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+    if (!connection?.refreshToken) {
+      res.status(400).json({
+        message: "Najpierw połącz konto Google Calendar",
+      });
+      return;
+    }
+
+    const oauthClient = getOAuthClient();
+
+    oauthClient.setCredentials({
+      refresh_token: connection.refreshToken,
+
+      ...(connection.accessToken
+        ? {
+            access_token: connection.accessToken,
+          }
+        : {}),
+
+      ...(connection.scope
+        ? {
+            scope: connection.scope,
+          }
+        : {}),
+
+      ...(connection.tokenType
+        ? {
+            token_type: connection.tokenType,
+          }
+        : {}),
+
+      ...(connection.expiryDate
+        ? {
+            expiry_date: connection.expiryDate.getTime(),
+          }
+        : {}),
+    });
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: oauthClient,
+    });
+
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: event.googleCalendarEventId,
+    });
+
+    const updatedEvent = await prisma.event.update({
+      where: {
+        id: eventId,
+      },
+      data: {
+        googleCalendarEventId: null,
+        googleCalendarSyncedAt: null,
+      },
+    });
+
+    res.json(updatedEvent);
+  } catch {
+    res.status(500).json({
+      message: "Błąd usuwania wydarzenia z Google Calendar",
+    });
+  }
+});
+
 export default router;
