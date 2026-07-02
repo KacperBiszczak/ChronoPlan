@@ -90,6 +90,17 @@ class NotificationService {
     return 500000 + eventId;
   }
 
+  static Future<bool> isEventReminderScheduled(int eventId) async {
+    if (kIsWeb) return false;
+
+    final pendingNotifications = await _plugin.pendingNotificationRequests();
+    final reminderId = eventReminderId(eventId);
+
+    return pendingNotifications.any(
+      (notification) => notification.id == reminderId,
+    );
+  }
+
   static Future<void> scheduleEventReminder({
     required int eventId,
     required String eventTitle,

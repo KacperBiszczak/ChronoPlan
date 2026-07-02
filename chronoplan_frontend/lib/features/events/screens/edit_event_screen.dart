@@ -6,6 +6,7 @@ import 'location_picker_screen.dart';
 import '../models/event_model.dart';
 
 import '../services/event_service.dart';
+import '../../../core/services/notification_service.dart';
 
 class EditEventScreen extends StatefulWidget {
   final int eventId;
@@ -223,6 +224,10 @@ class _EditEventScreenState extends State<EditEventScreen> {
     });
 
     try {
+      final hadReminder = await NotificationService.isEventReminderScheduled(
+        widget.eventId,
+      );
+
       await eventService.updateEvent(
         id: widget.eventId,
         title: title,
@@ -233,6 +238,16 @@ class _EditEventScreenState extends State<EditEventScreen> {
         latitude: latitude,
         longitude: longitude,
       );
+
+      if (hadReminder) {
+        await NotificationService.cancelEventReminder(widget.eventId);
+
+        await NotificationService.scheduleEventReminder(
+          eventId: widget.eventId,
+          eventTitle: titleController.text.trim(),
+          eventDate: selectedDateTime,
+        );
+      }
 
       if (!mounted) return;
 
