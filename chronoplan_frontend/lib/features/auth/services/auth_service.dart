@@ -6,6 +6,7 @@ import '../models/user_model.dart';
 class AuthService {
   final _dio = ApiClient.dio;
   final _storage = const FlutterSecureStorage();
+  final String baseUrl = 'http://127.0.0.1:5000';
 
   Future<void> login({
     required String email,

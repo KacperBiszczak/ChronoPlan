@@ -36,6 +36,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final expenseService = ExpenseService();
   final participantService = ParticipantService();
   final googleCalendarService = GoogleCalendarService();
+  
+  late Future<bool> googleCalendarStatusFuture;
 
   int? currentUserId;
 
@@ -47,7 +49,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     super.initState();
     eventFuture = eventService.getEventById(widget.eventId);
     summaryFuture = loadSummary();
+    
     loadCurrentUser();
+
+    googleCalendarStatusFuture = googleCalendarService.getStatus();
   }
 
   Future<void> refreshEvent() async {
@@ -719,70 +724,94 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Widget buildCalendarSection(EventModel event) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return FutureBuilder<bool>(
+      future: googleCalendarStatusFuture,
+      builder: (context, snapshot) {
+        final isConnected = snapshot.data == true;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.calendar_month_outlined,
-                  color: Colors.blue.shade700,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Google Calendar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Odśwież status',
+                      onPressed: refreshGoogleCalendarStatus,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Google Calendar',
+                const SizedBox(height: 12),
+                Text(
+                  isLoading
+                      ? 'Sprawdzanie połączenia...'
+                      : isConnected
+                          ? 'Konto Google Calendar jest połączone.'
+                          : 'Konto Google Calendar nie jest jeszcze połączone.',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    color: isConnected ? Colors.green.shade700 : Colors.orange.shade800,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+
+                if (event.googleCalendarSyncedAt != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ostatnia synchronizacja: ${AppFormatters.dateTime(event.googleCalendarSyncedAt!)}',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: connectGoogleCalendar,
+                        icon: const Icon(Icons.link),
+                        label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: isConnected
+                            ? () {
+                                syncEventWithGoogleCalendar(event);
+                              }
+                            : null,
+                        icon: const Icon(Icons.sync),
+                        label: const Text('Synchronizuj'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Połącz konto Google i synchronizuj wydarzenie z kalendarzem.',
-            ),
-
-            if (event.googleCalendarSyncedAt != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Ostatnia synchronizacja: ${AppFormatters.dateTime(event.googleCalendarSyncedAt!)}',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 13,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: connectGoogleCalendar,
-                    icon: const Icon(Icons.link),
-                    label: const Text('Połącz'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      syncEventWithGoogleCalendar(event);
-                    },
-                    icon: const Icon(Icons.sync),
-                    label: const Text('Synchronizuj'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -794,7 +823,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       AppSnackBar.success(
         context,
-        'Otworzono autoryzację Google Calendar',
+        'Otworzono autoryzację Google Calendar. Po połączeniu wróć do aplikacji i odśwież status.',
       );
     } catch (e) {
       if (!mounted) return;
@@ -828,6 +857,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         fallback: 'Nie udało się zsynchronizować wydarzenia',
       );
     }
+  }
+
+  Future<void> refreshGoogleCalendarStatus() async {
+    final future = googleCalendarService.getStatus();
+
+    setState(() {
+      googleCalendarStatusFuture = future;
+    });
+
+    await future;
   }
 }
 
