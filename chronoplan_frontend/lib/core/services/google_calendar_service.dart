@@ -11,8 +11,15 @@ class GoogleCalendarService {
     return response.data['connected'] == true;
   }
 
-  Future<void> connectGoogleCalendar() async {
-    final response = await _dio.get('/google-calendar/auth-url');
+  Future<void> connectGoogleCalendar({
+    String returnPath = '/home',
+  }) async {
+    final response = await _dio.get(
+      '/google-calendar/auth-url',
+      queryParameters: {
+        'returnPath': returnPath,
+      },
+    );
 
     final url = response.data['url'];
 

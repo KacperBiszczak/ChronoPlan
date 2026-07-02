@@ -1,5 +1,5 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import { google } from "googleapis";
 
 import { prisma } from "../lib/prisma";
@@ -28,7 +28,17 @@ const getOAuthClient = () => {
   );
 };
 
-const createStateToken = (userId: number) => {
+const getSafeReturnPath = (returnPath?: string) => {
+  if (!returnPath) return "/home";
+
+  if (!returnPath.startsWith("/") || returnPath.startsWith("//")) {
+    return "/home";
+  }
+
+  return returnPath;
+};
+
+const createStateToken = (userId: number, returnPath?: string) => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
@@ -39,6 +49,7 @@ const createStateToken = (userId: number) => {
     {
       userId,
       type: "google-calendar-oauth",
+      returnPath: getSafeReturnPath(returnPath),
     },
     secret,
     {
@@ -56,15 +67,27 @@ const verifyStateToken = (state: string) => {
 
   const decoded = jwt.verify(state, secret);
 
+  if (typeof decoded === "string") {
+    throw new Error("Nieprawidłowy state OAuth");
+  }
+
+  const payload = decoded as JwtPayload & {
+    userId?: number;
+    type?: string;
+    returnPath?: string;
+  };
+
   if (
-    typeof decoded === "string" ||
-    decoded.type !== "google-calendar-oauth" ||
-    !decoded.userId
+    payload.type !== "google-calendar-oauth" ||
+    !payload.userId
   ) {
     throw new Error("Nieprawidłowy state OAuth");
   }
 
-  return Number(decoded.userId);
+  return {
+    userId: Number(payload.userId),
+    returnPath: getSafeReturnPath(payload.returnPath),
+  };
 };
 
 /**
@@ -90,7 +113,11 @@ router.get("/auth-url", authMiddleware, async (req, res) => {
     }
 
     const oauthClient = getOAuthClient();
-    const state = createStateToken(userId);
+    const returnPath = typeof req.query.returnPath === "string"
+      ? req.query.returnPath
+      : "/home";
+
+    const state = createStateToken(userId, returnPath);
 
     const url = oauthClient.generateAuthUrl({
       access_type: "offline",
@@ -127,7 +154,7 @@ router.get("/callback", async (req, res) => {
       return;
     }
 
-    const userId = verifyStateToken(state);
+    const { userId, returnPath } = verifyStateToken(state);
 
     const oauthClient = getOAuthClient();
     const { tokens } = await oauthClient.getToken(code);
@@ -162,8 +189,12 @@ router.get("/callback", async (req, res) => {
     });
 
     const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:54321";
+    const normalizedFrontendUrl = frontendUrl.endsWith("/")
+      ? frontendUrl.slice(0, -1)
+      : frontendUrl;
 
-    res.redirect(`${frontendUrl}/home`);
+    res.redirect(`${normalizedFrontendUrl}${returnPath}`);
+    
   } catch {
     res.status(500).send("Błąd łączenia z Google Calendar");
   }

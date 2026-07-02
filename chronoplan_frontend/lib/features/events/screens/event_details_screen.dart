@@ -801,7 +801,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: connectGoogleCalendar,
+                            onPressed: () {
+                              connectGoogleCalendar(event);
+                            },
                             icon: const Icon(Icons.link),
                             label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
                           ),
@@ -856,25 +858,27 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  Future<void> connectGoogleCalendar() async {
+  Future<void> connectGoogleCalendar(EventModel event) async {
     try {
-      await googleCalendarService.connectGoogleCalendar();
-
-      if (!mounted) return;
-
-      AppSnackBar.success(
-        context,
-        'Otworzono autoryzację Google Calendar. Po połączeniu wróć do aplikacji i odśwież status.',
+      await googleCalendarService.connectGoogleCalendar(
+        returnPath: '/events/${event.id}',
       );
-    } catch (e) {
-      if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się połączyć Google Calendar',
-      );
-    }
+        if (!mounted) return;
+
+        AppSnackBar.success(
+          context,
+          'Otworzono autoryzację Google Calendar. Po połączeniu wróć do aplikacji i odśwież status.',
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        AppSnackBar.error(
+          context,
+          e,
+          fallback: 'Nie udało się połączyć Google Calendar',
+        );
+      }
   }
 
   Future<void> syncEventWithGoogleCalendar(EventModel event) async {
