@@ -4,6 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../router/root_navigator_key.dart';
 
@@ -90,6 +91,10 @@ class NotificationService {
     return 500000 + eventId;
   }
 
+  static String _eventReminderDateKey(int eventId) {
+    return 'event_reminder_date_$eventId';
+  }
+
   static Future<bool> isEventReminderScheduled(int eventId) async {
     if (kIsWeb) return false;
 
@@ -141,11 +146,75 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       payload: '/events/$eventId',
     );
+
+    final preferences = await SharedPreferences.getInstance();
+
+    await preferences.setString(
+      _eventReminderDateKey(eventId),
+      eventDate.toUtc().toIso8601String(),
+    );
   }
 
   static Future<void> cancelEventReminder(int eventId) async {
-    await _plugin.cancel(
-      id: eventReminderId(eventId),
+    await _plugin.cancel(id: eventReminderId(eventId));
+
+    final preferences = await SharedPreferences.getInstance();
+
+    await preferences.remove(_eventReminderDateKey(eventId));
+  }
+
+  static Future<bool> isEventReminderDateCurrent({
+    required int eventId,
+    required DateTime eventDate,
+  }) async {
+    if (kIsWeb) return false;
+
+    final preferences = await SharedPreferences.getInstance();
+    final savedDateText = preferences.getString(_eventReminderDateKey(eventId));
+
+    if (savedDateText == null || savedDateText.isEmpty) {
+      return false;
+    }
+
+    final savedDate = DateTime.tryParse(savedDateText);
+
+    if (savedDate == null) {
+      return false;
+    }
+
+    return savedDate.toUtc().isAtSameMomentAs(eventDate.toUtc());
+  }
+
+  static Future<bool> rescheduleEventReminderIfNeeded({
+    required int eventId,
+    required String eventTitle,
+    required DateTime eventDate,
+  }) async {
+    if (kIsWeb) return false;
+
+    final isScheduled = await isEventReminderScheduled(eventId);
+
+    if (!isScheduled) {
+      return false;
+    }
+
+    final isCurrent = await isEventReminderDateCurrent(
+      eventId: eventId,
+      eventDate: eventDate,
     );
+
+    if (isCurrent) {
+      return false;
+    }
+
+    await cancelEventReminder(eventId);
+
+    await scheduleEventReminder(
+      eventId: eventId,
+      eventTitle: eventTitle,
+      eventDate: eventDate,
+    );
+
+    return true;
   }
 }

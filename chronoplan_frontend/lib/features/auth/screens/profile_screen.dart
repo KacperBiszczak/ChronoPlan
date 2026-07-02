@@ -335,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
     try {
       await googleCalendarService.connectGoogleCalendar(
-        returnPath: '/#/profile',
+        returnPath: '/#/home',
       );
 
       if (!mounted) return;

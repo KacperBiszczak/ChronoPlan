@@ -51,7 +51,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   void initState() {
     super.initState();
 
-    eventFuture = eventService.getEventById(widget.eventId);
+    eventFuture = loadEvent();
     summaryFuture = loadSummary();
     
     loadCurrentUser();
@@ -67,9 +67,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Future<void> refreshEvent() async {
     setState(() {
-      eventFuture = eventService.getEventById(widget.eventId);
+      eventFuture = loadEvent();
       summaryFuture = loadSummary();
     });
+  }
+
+  Future<EventModel> loadEvent() async {
+    final event = await eventService.getEventById(widget.eventId);
+
+    await rescheduleReminderIfNeeded(event);
+
+    return event;
   }
 
   Future<EventSummaryData> loadSummary() async {
@@ -418,11 +426,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 subtitle: Text(participantsText),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
-                  await context.push('/events/${widget.eventId}/participants');
+                  await context.push('/events/${widget.eventId}/date-votes');
 
                   if (!mounted) return;
 
-                  refreshEvent();
+                  await refreshEvent();
+                  await refreshGoogleCalendarStatus();
+                  await refreshReminderStatus();
                 },
               ),
             ),
@@ -928,18 +938,31 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Future<void> syncEventWithGoogleCalendar(EventModel event) async {
     try {
+      final status = await googleCalendarService.getEventStatus(event.id);
+
+      if (!status.connected) {
+        if (!mounted) return;
+
+        AppSnackBar.info(
+          context,
+          'Najpierw połącz Google Calendar w profilu.',
+        );
+
+        await openProfileForGoogleCalendar();
+        return;
+      }
+
       await googleCalendarService.syncEvent(event.id);
 
       if (!mounted) return;
 
       AppSnackBar.success(
         context,
-        'Wydarzenie zostało dodane do Twojego Google Calendar',
+        'Google Calendar został zaktualizowany',
       );
 
       await refreshEvent();
       await refreshGoogleCalendarStatus();
-
     } catch (e) {
       if (!mounted) return;
 
@@ -1052,6 +1075,28 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       setState(() {
         isGoogleCalendarActionLoading = false;
       });
+    }
+  }
+
+  Future<void> rescheduleReminderIfNeeded(EventModel event) async {
+    try {
+      final wasRescheduled =
+          await NotificationService.rescheduleEventReminderIfNeeded(
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDate: event.date,
+      );
+
+      if (!mounted || !wasRescheduled) return;
+
+      AppSnackBar.info(
+        context,
+        'Przypomnienie zostało zaktualizowane do nowej daty wydarzenia',
+      );
+
+      await refreshReminderStatus();
+    } catch (_) {
+      // Nie blokujemy ładowania szczegółów wydarzenia.
     }
   }
 }

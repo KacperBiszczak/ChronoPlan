@@ -347,6 +347,47 @@ router.get("/callback", async (req, res) => {
 
 /**
  * @swagger
+ * /google-calendar/status:
+ *   get:
+ *     summary: Sprawdza, czy zalogowany użytkownik ma połączony Google Calendar
+ *     tags:
+ *       - Google Calendar
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Status połączenia Google Calendar
+ */
+router.get("/status", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    const connection = await prisma.googleCalendarConnection.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+    res.json({
+      connected: Boolean(connection?.refreshToken),
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd sprawdzania połączenia Google Calendar",
+    });
+  }
+});
+
+/**
+ * @swagger
  * /google-calendar/status/event/{eventId}:
  *   get:
  *     summary: Sprawdza status synchronizacji wydarzenia dla zalogowanego użytkownika
