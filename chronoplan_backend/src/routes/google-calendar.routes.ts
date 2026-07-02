@@ -684,4 +684,61 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /google-calendar/clear-event-link/{eventId}:
+ *   patch:
+ *     summary: Czyści powiązanie wydarzenia z Google Calendar bez usuwania wydarzenia z Google
+ *     tags:
+ *       - Google Calendar
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch("/clear-event-link/:eventId", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await isEventOrganizer(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Tylko organizator może usunąć powiązanie Google Calendar",
+      });
+      return;
+    }
+
+    const updatedEvent = await prisma.event.update({
+      where: {
+        id: eventId,
+      },
+      data: {
+        googleCalendarEventId: null,
+        googleCalendarSyncedAt: null,
+      },
+    });
+
+    res.json(updatedEvent);
+  } catch {
+    res.status(500).json({
+      message: "Błąd usuwania powiązania Google Calendar",
+    });
+  }
+});
+
 export default router;

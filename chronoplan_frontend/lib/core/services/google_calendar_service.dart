@@ -47,6 +47,10 @@ class GoogleCalendarService {
     await _dio.delete('/google-calendar/delete-event/$eventId');
   }
 
+  Future<void> clearEventLink(int eventId) async {
+    await _dio.patch('/google-calendar/clear-event-link/$eventId');
+  }
+
   Future<void> disconnectGoogleCalendar() async {
     await _dio.delete('/google-calendar/disconnect');
   }

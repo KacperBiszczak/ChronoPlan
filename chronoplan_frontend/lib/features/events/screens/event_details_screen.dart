@@ -851,6 +851,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                           label: const Text('Usuń wydarzenie z Google Calendar'),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            clearGoogleCalendarEventLink(event);
+                          },
+                          icon: const Icon(Icons.link_off),
+                          label: const Text('Usuń tylko powiązanie'),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -938,6 +949,41 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
         context,
         e,
         fallback: 'Nie udało się odłączyć Google Calendar',
+      );
+    }
+  }
+
+  Future<void> clearGoogleCalendarEventLink(EventModel event) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Usuń powiązanie',
+      message:
+          'Czy na pewno chcesz usunąć samo powiązanie z Google Calendar? Wydarzenie w ChronoPlan zostanie bez zmian.',
+      confirmText: 'Usuń powiązanie',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
+    try {
+      await googleCalendarService.clearEventLink(event.id);
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Powiązanie z Google Calendar zostało usunięte',
+      );
+
+      await refreshEvent();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się usunąć powiązania Google Calendar',
       );
     }
   }
