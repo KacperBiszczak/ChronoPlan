@@ -935,6 +935,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
       );
 
       await refreshGoogleCalendarStatus();
+      await refreshEvent();
     } catch (e) {
       if (!mounted) return;
 

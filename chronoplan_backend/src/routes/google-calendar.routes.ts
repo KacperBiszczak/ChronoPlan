@@ -401,11 +401,23 @@ router.delete("/disconnect", authMiddleware, async (req, res) => {
       return;
     }
 
-    await prisma.googleCalendarConnection.deleteMany({
-      where: {
-        userId,
-      },
-    });
+    await prisma.$transaction([
+      prisma.googleCalendarConnection.deleteMany({
+        where: {
+          userId,
+        },
+      }),
+
+      prisma.event.updateMany({
+        where: {
+          creatorId: userId,
+        },
+        data: {
+          googleCalendarEventId: null,
+          googleCalendarSyncedAt: null,
+        },
+      }),
+    ]);
 
     res.json({
       message: "Google Calendar został odłączony",
