@@ -39,6 +39,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   
   late Future<bool> googleCalendarStatusFuture;
 
+  bool isGoogleCalendarActionLoading = false;
+
   int? currentUserId;
 
   late Future<EventModel> eventFuture;
@@ -797,6 +799,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                   ),
                 ],
 
+                if (isGoogleCalendarActionLoading) ...[
+                  const SizedBox(height: 12),
+                  const LinearProgressIndicator(),
+                ],
+
                 const SizedBox(height: 16),
 
                 Column(
@@ -805,9 +812,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () {
-                              connectGoogleCalendar(event);
-                            },
+                          onPressed: isGoogleCalendarActionLoading
+                              ? null
+                              : () {
+                                  runGoogleCalendarAction(() {
+                                    return connectGoogleCalendar(event);
+                                  });
+                                },
                             icon: const Icon(Icons.link),
                             label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
                           ),
@@ -815,13 +826,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                         const SizedBox(width: 12),
                         Expanded(
                           child: FilledButton.icon(
-                            onPressed: isConnected
-                                ? () {
-                                    syncEventWithGoogleCalendar(event);
-                                  }
-                                : null,
+                            onPressed: isConnected && !isGoogleCalendarActionLoading
+                              ? () {
+                                  runGoogleCalendarAction(() {
+                                    return syncEventWithGoogleCalendar(event);
+                                  });
+                                }
+                              : null,
                             icon: const Icon(Icons.sync),
-                            label: const Text('Synchronizuj'),
+                            label: Text(
+                              event.googleCalendarEventId == null
+                                  ? 'Synchronizuj'
+                                  : 'Synchronizuj ponownie',
+                            ),
                           ),
                         ),
                       ],
@@ -832,7 +849,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: disconnectGoogleCalendar,
+                          onPressed: isGoogleCalendarActionLoading
+                            ? null
+                            : () {
+                                runGoogleCalendarAction(disconnectGoogleCalendar);
+                              },
                           icon: const Icon(Icons.link_off),
                           label: const Text('Odłącz Google Calendar'),
                         ),
@@ -844,9 +865,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            deleteEventFromGoogleCalendar(event);
-                          },
+                        onPressed: isGoogleCalendarActionLoading
+                            ? null
+                            : () {
+                                runGoogleCalendarAction(() {
+                                  return deleteEventFromGoogleCalendar(event);
+                                });
+                              },
                           icon: const Icon(Icons.delete_outline),
                           label: const Text('Usuń wydarzenie z Google Calendar'),
                         ),
@@ -855,9 +880,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                       SizedBox(
                         width: double.infinity,
                         child: TextButton.icon(
-                          onPressed: () {
-                            clearGoogleCalendarEventLink(event);
-                          },
+                        onPressed: isGoogleCalendarActionLoading
+                            ? null
+                            : () {
+                                runGoogleCalendarAction(() {
+                                  return clearGoogleCalendarEventLink(event);
+                                });
+                              },
                           icon: const Icon(Icons.link_off),
                           label: const Text('Usuń tylko powiązanie'),
                         ),
@@ -1012,11 +1041,31 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
+    void didChangeAppLifecycleState(AppLifecycleState state) {
+      super.didChangeAppLifecycleState(state);
 
-    if (state == AppLifecycleState.resumed) {
-      refreshGoogleCalendarStatus();
+      if (state == AppLifecycleState.resumed) {
+        refreshGoogleCalendarStatus();
+      }
+    }
+
+    Future<void> runGoogleCalendarAction(
+    Future<void> Function() action,
+  ) async {
+    if (isGoogleCalendarActionLoading) return;
+
+    setState(() {
+      isGoogleCalendarActionLoading = true;
+    });
+
+    try {
+      await action();
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        isGoogleCalendarActionLoading = false;
+      });
     }
   }
 }

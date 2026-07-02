@@ -150,6 +150,19 @@ const getGoogleErrorMessage = (
   return message;
 };
 
+const isGoogleCalendarEventNotFoundError = (error: unknown) => {
+  const status = getGoogleErrorStatus(error);
+  const message = getGoogleErrorMessage(error, "");
+
+  return (
+    status === 404 ||
+    message.includes("Wydarzenie nie istnieje już w Google Calendar") ||
+    message.includes("Not Found") ||
+    message.includes("notFound") ||
+    message.includes("Resource has been deleted")
+  );
+};
+
 const getSafeReturnPath = (returnPath?: string) => {
   if (!returnPath) return "/home";
 
@@ -479,12 +492,22 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
     let googleCalendarEventId = event.googleCalendarEventId;
 
     if (googleCalendarEventId) {
-      await calendar.events.update({
-        calendarId: "primary",
-        eventId: googleCalendarEventId,
-        requestBody: googleEvent,
-      });
-    } else {
+      try {
+        await calendar.events.update({
+          calendarId: "primary",
+          eventId: googleCalendarEventId,
+          requestBody: googleEvent,
+        });
+      } catch (error) {
+        if (!isGoogleCalendarEventNotFoundError(error)) {
+          throw error;
+        }
+
+        googleCalendarEventId = null;
+      }
+    }
+
+    if (!googleCalendarEventId) {
       const createdEvent = await calendar.events.insert({
         calendarId: "primary",
         requestBody: googleEvent,
