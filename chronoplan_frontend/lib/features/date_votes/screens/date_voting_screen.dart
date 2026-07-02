@@ -7,6 +7,7 @@ import '../../auth/services/auth_service.dart';
 import '../../events/services/event_service.dart';
 import '../models/date_option_model.dart';
 import '../services/date_vote_service.dart';
+import '../../../core/services/notification_service.dart';
 
 class DateVotingScreenData {
   final List<DateOptionModel> options;
@@ -255,35 +256,42 @@ class _DateVotingScreenState extends State<DateVotingScreen> {
   }
 
   Future<void> applyOption(DateOptionModel option) async {
-    final confirmed = await AppConfirmDialog.show(
-      context,
-      title: 'Ustawić termin wydarzenia?',
-      message:
-          'Czy chcesz ustawić ${AppFormatters.dateTime(option.proposedDate)} jako właściwy termin wydarzenia?',
-      confirmText: 'Ustaw',
-      cancelText: 'Anuluj',
-    );
-
-    if (!mounted || !confirmed) return;
-
     try {
+      final hadReminder = await NotificationService.isEventReminderScheduled(
+        widget.eventId,
+      );
+
       await dateVoteService.applyOption(option.id);
 
-      await refreshVoting();
+      if (hadReminder) {
+        final updatedEvent = await eventService.getEventById(widget.eventId);
+
+        await NotificationService.cancelEventReminder(widget.eventId);
+
+        await NotificationService.scheduleEventReminder(
+          eventId: updatedEvent.id,
+          eventTitle: updatedEvent.title,
+          eventDate: updatedEvent.date,
+        );
+      }
 
       if (!mounted) return;
 
       AppSnackBar.success(
         context,
-        'Termin wydarzenia został zaktualizowany',
+        hadReminder
+            ? 'Termin został zastosowany. Przypomnienie ustawiono ponownie.'
+            : 'Termin został zastosowany',
       );
+
+      await refreshVoting();
     } catch (e) {
       if (!mounted) return;
 
       AppSnackBar.error(
         context,
         e,
-        fallback: 'Nie udało się ustawić terminu wydarzenia',
+        fallback: 'Nie udało się zastosować terminu',
       );
     }
   }
