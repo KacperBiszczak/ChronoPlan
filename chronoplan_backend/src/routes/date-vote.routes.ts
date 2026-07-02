@@ -8,6 +8,7 @@ import {
   createDateOptionSchema,
   updateDateVoteSchema,
 } from "../validators/date-vote.validator";
+import { updateExistingGoogleCalendarEventForEvent } from "../lib/google-calendar-event-sync";
 
 const router = Router();
 
@@ -400,6 +401,12 @@ router.patch("/options/:optionId/apply", authMiddleware, async (req, res) => {
         date: option.proposedDate,
       },
     });
+
+    try {
+      await updateExistingGoogleCalendarEventForEvent(updatedEvent.id);
+    } catch {
+      // Nie blokujemy zatwierdzenia terminu, jeśli Google Calendar nie odpowie.
+    }
 
     res.json(updatedEvent);
   } catch {
