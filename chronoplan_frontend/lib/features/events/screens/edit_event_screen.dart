@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import 'location_picker_screen.dart';
+import '../models/event_model.dart';
 
 import '../services/event_service.dart';
+import '../../../core/services/google_calendar_service.dart';
 
 class EditEventScreen extends StatefulWidget {
   final int eventId;
@@ -22,10 +24,13 @@ class _EditEventScreenState extends State<EditEventScreen> {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
   final eventService = EventService();
+  final googleCalendarService = GoogleCalendarService();
   final locationNameController = TextEditingController();
   final locationAddressController = TextEditingController();
   final latitudeController = TextEditingController();
   final longitudeController = TextEditingController();
+
+  EventModel? loadedEvent;
 
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
@@ -53,6 +58,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
   Future<void> loadEvent() async {
     try {
       final event = await eventService.getEventById(widget.eventId);
+      loadedEvent = event;
 
       titleController.text = event.title;
       descriptionController.text = event.description ?? '';
@@ -229,6 +235,14 @@ class _EditEventScreenState extends State<EditEventScreen> {
         latitude: latitude,
         longitude: longitude,
       );
+
+      if (loadedEvent?.googleCalendarEventId != null) {
+        try {
+          await googleCalendarService.syncEvent(widget.eventId);
+        } catch (_) {
+          // Nie blokujemy zapisu wydarzenia, jeśli synchronizacja Google się nie uda.
+        }
+      }
 
       if (!mounted) return;
 
