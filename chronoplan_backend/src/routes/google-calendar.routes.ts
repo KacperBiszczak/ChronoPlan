@@ -348,4 +348,42 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /google-calendar/disconnect:
+ *   delete:
+ *     summary: Odłącza konto Google Calendar
+ *     tags:
+ *       - Google Calendar
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete("/disconnect", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    await prisma.googleCalendarConnection.deleteMany({
+      where: {
+        userId,
+      },
+    });
+
+    res.json({
+      message: "Google Calendar został odłączony",
+    });
+  } catch {
+    res.status(500).json({
+      message: "Błąd odłączania Google Calendar",
+    });
+  }
+});
+
 export default router;

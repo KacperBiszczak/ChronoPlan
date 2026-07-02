@@ -784,27 +784,43 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
                 const SizedBox(height: 16),
 
-                Row(
+                Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: connectGoogleCalendar,
-                        icon: const Icon(Icons.link),
-                        label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: connectGoogleCalendar,
+                            icon: const Icon(Icons.link),
+                            label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: isConnected
+                                ? () {
+                                    syncEventWithGoogleCalendar(event);
+                                  }
+                                : null,
+                            icon: const Icon(Icons.sync),
+                            label: const Text('Synchronizuj'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: isConnected
-                            ? () {
-                                syncEventWithGoogleCalendar(event);
-                              }
-                            : null,
-                        icon: const Icon(Icons.sync),
-                        label: const Text('Synchronizuj'),
+
+                    if (isConnected) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: disconnectGoogleCalendar,
+                          icon: const Icon(Icons.link_off),
+                          label: const Text('Odłącz Google Calendar'),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -867,6 +883,29 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     });
 
     await future;
+  }
+
+  Future<void> disconnectGoogleCalendar() async {
+    try {
+      await googleCalendarService.disconnectGoogleCalendar();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Google Calendar został odłączony',
+      );
+
+      await refreshGoogleCalendarStatus();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się odłączyć Google Calendar',
+      );
+    }
   }
 }
 
