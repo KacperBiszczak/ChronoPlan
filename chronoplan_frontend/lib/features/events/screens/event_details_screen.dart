@@ -29,7 +29,7 @@ class EventDetailsScreen extends StatefulWidget {
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
 }
 
-class _EventDetailsScreenState extends State<EventDetailsScreen> {
+class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBindingObserver {
   final eventService = EventService();
   final authService = AuthService();
   final taskService = TaskService();
@@ -47,12 +47,21 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
     eventFuture = eventService.getEventById(widget.eventId);
     summaryFuture = loadSummary();
     
     loadCurrentUser();
 
     googleCalendarStatusFuture = googleCalendarService.getStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> refreshEvent() async {
@@ -868,7 +877,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
         AppSnackBar.success(
           context,
-          'Otworzono autoryzację Google Calendar. Po połączeniu wróć do aplikacji i odśwież status.',
+          'Otworzono autoryzację Google Calendar. Po powrocie do aplikacji status odświeży się automatycznie.',
         );
       } catch (e) {
         if (!mounted) return;
@@ -957,6 +966,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         e,
         fallback: 'Nie udało się usunąć wydarzenia z Google Calendar',
       );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      refreshGoogleCalendarStatus();
     }
   }
 }
