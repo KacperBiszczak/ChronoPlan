@@ -865,7 +865,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   Future<void> connectGoogleCalendar(EventModel event) async {
     try {
       await googleCalendarService.connectGoogleCalendar(
-        returnPath: '/events/${event.id}',
+        returnPath: '/#/events/${event.id}',
       );
 
         if (!mounted) return;

@@ -28,6 +28,128 @@ const getOAuthClient = () => {
   );
 };
 
+type UnknownRecord = Record<string, unknown>;
+
+const isObject = (value: unknown): value is UnknownRecord => {
+  return typeof value === "object" && value !== null;
+};
+
+const getStringValue = (
+  object: UnknownRecord | null,
+  key: string,
+) => {
+  if (!object) return null;
+
+  const value = object[key];
+
+  return typeof value === "string" ? value : null;
+};
+
+const getNumberValue = (
+  object: UnknownRecord | null,
+  key: string,
+) => {
+  if (!object) return null;
+
+  const value = object[key];
+
+  return typeof value === "number" ? value : null;
+};
+
+const getGoogleErrorData = (error: unknown) => {
+  if (!isObject(error)) return null;
+
+  const response = isObject(error.response)
+    ? error.response
+    : null;
+
+  const data = response && isObject(response.data)
+    ? response.data
+    : null;
+
+  return {
+    response,
+    data,
+  };
+};
+
+const getGoogleErrorStatus = (error: unknown) => {
+  if (!isObject(error)) return 500;
+
+  const { response } = getGoogleErrorData(error) ?? {};
+
+  const responseStatus = response
+    ? getNumberValue(response, "status")
+    : null;
+
+  const errorCode = getNumberValue(error, "code");
+
+  return responseStatus ?? errorCode ?? 500;
+};
+
+const getGoogleErrorMessage = (
+  error: unknown,
+  fallback: string,
+) => {
+  if (!isObject(error)) return fallback;
+
+  const { data } = getGoogleErrorData(error) ?? {};
+
+  const mainMessage = getStringValue(error, "message");
+  const dataMessage = data
+    ? getStringValue(data, "message")
+    : null;
+
+  const errorDescription = data
+    ? getStringValue(data, "error_description")
+    : null;
+
+  const rawError = data?.error;
+
+  let googleError: string | null = null;
+
+  if (typeof rawError === "string") {
+    googleError = rawError;
+  }
+
+  if (isObject(rawError)) {
+    googleError = getStringValue(rawError, "message");
+  }
+
+  const message =
+    errorDescription ??
+    googleError ??
+    dataMessage ??
+    mainMessage ??
+    fallback;
+
+  if (message.includes("redirect_uri_mismatch")) {
+    return "Nieprawidłowy redirect URI Google Calendar. Sprawdź GOOGLE_REDIRECT_URI w .env oraz Authorized redirect URIs w Google Cloud.";
+  }
+
+  if (message.includes("invalid_grant")) {
+    return "Połączenie Google Calendar wygasło albo zostało cofnięte. Odłącz konto Google Calendar i połącz je ponownie.";
+  }
+
+  if (
+    message.includes("Not Found") ||
+    message.includes("notFound") ||
+    message.includes("Resource has been deleted")
+  ) {
+    return "Wydarzenie nie istnieje już w Google Calendar. Usuń powiązanie i zsynchronizuj wydarzenie ponownie.";
+  }
+
+  if (
+    message.includes("insufficient") ||
+    message.includes("forbidden") ||
+    message.includes("Forbidden")
+  ) {
+    return "Brak uprawnień do Google Calendar. Połącz konto ponownie i zaakceptuj wymagane uprawnienia.";
+  }
+
+  return message;
+};
+
 const getSafeReturnPath = (returnPath?: string) => {
   if (!returnPath) return "/home";
 
@@ -129,9 +251,12 @@ router.get("/auth-url", authMiddleware, async (req, res) => {
     res.json({
       url,
     });
-  } catch {
+  } catch (error) {
     res.status(500).json({
-      message: "Błąd generowania linku Google Calendar",
+      message: getGoogleErrorMessage(
+        error,
+        "Błąd generowania linku Google Calendar",
+      ),
     });
   }
 });
@@ -195,8 +320,15 @@ router.get("/callback", async (req, res) => {
 
     res.redirect(`${normalizedFrontendUrl}${returnPath}`);
     
-  } catch {
-    res.status(500).send("Błąd łączenia z Google Calendar");
+  } catch (error) {
+    res
+      .status(500)
+      .send(
+        getGoogleErrorMessage(
+          error,
+          "Błąd łączenia z Google Calendar",
+        ),
+      );
   }
 });
 
@@ -372,9 +504,12 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
     });
 
     res.json(updatedEvent);
-  } catch {
-    res.status(500).json({
-      message: "Błąd synchronizacji z Google Calendar",
+  } catch (error) {
+    res.status(getGoogleErrorStatus(error)).json({
+      message: getGoogleErrorMessage(
+        error,
+        "Błąd synchronizacji z Google Calendar",
+      ),
     });
   }
 });
@@ -539,9 +674,12 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
     });
 
     res.json(updatedEvent);
-  } catch {
-    res.status(500).json({
-      message: "Błąd usuwania wydarzenia z Google Calendar",
+  } catch (error) {
+    res.status(getGoogleErrorStatus(error)).json({
+      message: getGoogleErrorMessage(
+        error,
+        "Błąd usuwania wydarzenia z Google Calendar",
+      ),
     });
   }
 });

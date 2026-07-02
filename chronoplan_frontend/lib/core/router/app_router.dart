@@ -20,7 +20,7 @@ import '../../features/chat/screens/chat_screen.dart';
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
-  initialLocation: '/',
+  initialLocation: '/login',
   routes: [
     GoRoute(
       path: '/',
