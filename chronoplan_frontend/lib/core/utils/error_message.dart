@@ -14,33 +14,37 @@ class AppErrorMessage {
         if (message is String && message.trim().isNotEmpty) {
           return message;
         }
+
+        final errorText = responseData['error'];
+
+        if (errorText is String && errorText.trim().isNotEmpty) {
+          return errorText;
+        }
       }
 
       if (responseData is String && responseData.trim().isNotEmpty) {
         return responseData;
       }
 
-      switch (error.type) {
-        case DioExceptionType.connectionTimeout:
-        case DioExceptionType.sendTimeout:
-        case DioExceptionType.receiveTimeout:
-          return 'Przekroczono czas połączenia z serwerem';
+      final dioMessage = error.message;
 
-        case DioExceptionType.connectionError:
-          return 'Nie można połączyć się z serwerem';
-
-        case DioExceptionType.badResponse:
-          return fallback;
-
-        case DioExceptionType.cancel:
-          return 'Żądanie zostało anulowane';
-
-        case DioExceptionType.badCertificate:
-          return 'Problem z certyfikatem serwera';
-
-        case DioExceptionType.unknown:
-          return fallback;
+      if (dioMessage != null && dioMessage.trim().isNotEmpty) {
+        return dioMessage;
       }
+    }
+
+    if (error is Exception) {
+      final message = error.toString().replaceFirst('Exception: ', '');
+
+      if (message.trim().isNotEmpty) {
+        return message;
+      }
+    }
+
+    final message = error.toString();
+
+    if (message.trim().isNotEmpty && message != 'null') {
+      return message;
     }
 
     return fallback;

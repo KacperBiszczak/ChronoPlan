@@ -73,62 +73,27 @@ export const updateExistingGoogleCalendarEventForEvent = async (
       id: eventId,
     },
     include: {
-      creator: {
+      googleCalendarSyncs: {
         include: {
-          googleCalendarConnection: true,
+          user: {
+            include: {
+              googleCalendarConnection: true,
+            },
+          },
         },
       },
     },
   });
 
-  if (!event?.googleCalendarEventId) {
-    return false;
-  }
-
-  const connection = event.creator.googleCalendarConnection;
-
-  if (!connection?.refreshToken) {
-    return false;
+  if (!event || event.googleCalendarSyncs.length === 0) {
+    return 0;
   }
 
   const oauthClient = getOAuthClient();
 
   if (!oauthClient) {
-    return false;
+    return 0;
   }
-
-  oauthClient.setCredentials({
-    refresh_token: connection.refreshToken,
-
-    ...(connection.accessToken
-      ? {
-          access_token: connection.accessToken,
-        }
-      : {}),
-
-    ...(connection.scope
-      ? {
-          scope: connection.scope,
-        }
-      : {}),
-
-    ...(connection.tokenType
-      ? {
-          token_type: connection.tokenType,
-        }
-      : {}),
-
-    ...(connection.expiryDate
-      ? {
-          expiry_date: connection.expiryDate.getTime(),
-        }
-      : {}),
-  });
-
-  const calendar = google.calendar({
-    version: "v3",
-    auth: oauthClient,
-  });
 
   const locationParts = [
     event.locationName,
@@ -137,8 +102,8 @@ export const updateExistingGoogleCalendarEventForEvent = async (
 
   const googleEvent = {
     summary: event.title,
-    description: event.description ?? "Wydarzenie utworzone w ChronoPlan",
-    location: locationParts.join(", "),
+    description: event.description ?? 'Wydarzenie utworzone w ChronoPlan',
+    location: locationParts.join(', '),
     start: {
       dateTime: event.date.toISOString(),
     },
@@ -149,44 +114,89 @@ export const updateExistingGoogleCalendarEventForEvent = async (
     },
   };
 
-  let googleCalendarEventId = event.googleCalendarEventId;
+  let updatedCount = 0;
 
-  try {
-    await calendar.events.update({
-      calendarId: "primary",
-      eventId: googleCalendarEventId,
-      requestBody: googleEvent,
-    });
-  } catch (error) {
-    if (!isGoogleCalendarEventNotFoundError(error)) {
-      throw error;
+  for (const sync of event.googleCalendarSyncs) {
+    const connection = sync.user.googleCalendarConnection;
+
+    if (!connection?.refreshToken) {
+      continue;
     }
 
-    const createdEvent = await calendar.events.insert({
-      calendarId: "primary",
-      requestBody: googleEvent,
+    oauthClient.setCredentials({
+      refresh_token: connection.refreshToken,
+
+      ...(connection.accessToken
+        ? {
+            access_token: connection.accessToken,
+          }
+        : {}),
+
+      ...(connection.scope
+        ? {
+            scope: connection.scope,
+          }
+        : {}),
+
+      ...(connection.tokenType
+        ? {
+            token_type: connection.tokenType,
+          }
+        : {}),
+
+      ...(connection.expiryDate
+        ? {
+            expiry_date: connection.expiryDate.getTime(),
+          }
+        : {}),
     });
 
-    const createdGoogleCalendarEventId = createdEvent.data.id;
+    const calendar = google.calendar({
+      version: 'v3',
+      auth: oauthClient,
+    });
 
-    if (!createdGoogleCalendarEventId) {
-      return false;
+    let googleCalendarEventId = sync.googleCalendarEventId;
+
+    try {
+      await calendar.events.update({
+        calendarId: 'primary',
+        eventId: googleCalendarEventId,
+        requestBody: googleEvent,
+      });
+    } catch (error) {
+      if (!isGoogleCalendarEventNotFoundError(error)) {
+        continue;
+      }
+
+      const createdEvent = await calendar.events.insert({
+        calendarId: 'primary',
+        requestBody: googleEvent,
+      });
+
+      const createdGoogleCalendarEventId = createdEvent.data.id;
+
+      if (!createdGoogleCalendarEventId) {
+        continue;
+      }
+
+      googleCalendarEventId = createdGoogleCalendarEventId;
     }
 
-    googleCalendarEventId = createdGoogleCalendarEventId;
+    await prisma.googleCalendarEventSync.update({
+      where: {
+        id: sync.id,
+      },
+      data: {
+        googleCalendarEventId,
+        syncedAt: new Date(),
+      },
+    });
+
+    updatedCount += 1;
   }
 
-  await prisma.event.update({
-    where: {
-      id: event.id,
-    },
-    data: {
-      googleCalendarEventId,
-      googleCalendarSyncedAt: new Date(),
-    },
-  });
-
-  return true;
+  return updatedCount;
 };
 
 export const deleteExistingGoogleCalendarEventForEvent = async (
@@ -197,83 +207,88 @@ export const deleteExistingGoogleCalendarEventForEvent = async (
       id: eventId,
     },
     include: {
-      creator: {
+      googleCalendarSyncs: {
         include: {
-          googleCalendarConnection: true,
+          user: {
+            include: {
+              googleCalendarConnection: true,
+            },
+          },
         },
       },
     },
   });
 
-  if (!event?.googleCalendarEventId) {
-    return false;
-  }
-
-  const connection = event.creator.googleCalendarConnection;
-
-  if (!connection?.refreshToken) {
-    return false;
+  if (!event || event.googleCalendarSyncs.length === 0) {
+    return 0;
   }
 
   const oauthClient = getOAuthClient();
 
   if (!oauthClient) {
-    return false;
+    return 0;
   }
 
-  oauthClient.setCredentials({
-    refresh_token: connection.refreshToken,
+  let deletedCount = 0;
 
-    ...(connection.accessToken
-      ? {
-          access_token: connection.accessToken,
-        }
-      : {}),
+  for (const sync of event.googleCalendarSyncs) {
+    const connection = sync.user.googleCalendarConnection;
 
-    ...(connection.scope
-      ? {
-          scope: connection.scope,
-        }
-      : {}),
+    if (!connection?.refreshToken) {
+      continue;
+    }
 
-    ...(connection.tokenType
-      ? {
-          token_type: connection.tokenType,
-        }
-      : {}),
+    oauthClient.setCredentials({
+      refresh_token: connection.refreshToken,
 
-    ...(connection.expiryDate
-      ? {
-          expiry_date: connection.expiryDate.getTime(),
-        }
-      : {}),
-  });
+      ...(connection.accessToken
+        ? {
+            access_token: connection.accessToken,
+          }
+        : {}),
 
-  const calendar = google.calendar({
-    version: "v3",
-    auth: oauthClient,
-  });
+      ...(connection.scope
+        ? {
+            scope: connection.scope,
+          }
+        : {}),
 
-  try {
-    await calendar.events.delete({
-      calendarId: "primary",
-      eventId: event.googleCalendarEventId,
+      ...(connection.tokenType
+        ? {
+            token_type: connection.tokenType,
+          }
+        : {}),
+
+      ...(connection.expiryDate
+        ? {
+            expiry_date: connection.expiryDate.getTime(),
+          }
+        : {}),
     });
-  } catch (error) {
-    if (!isGoogleCalendarEventNotFoundError(error)) {
-      throw error;
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: oauthClient,
+    });
+
+    try {
+      await calendar.events.delete({
+        calendarId: "primary",
+        eventId: sync.googleCalendarEventId,
+      });
+
+      deletedCount += 1;
+    } catch (error) {
+      if (isGoogleCalendarEventNotFoundError(error)) {
+        deletedCount += 1;
+        continue;
+      }
+
+      // Nie blokujemy usuwania wydarzenia w ChronoPlan,
+      // jeśli dla jednego użytkownika Google Calendar zwróci błąd.
+      continue;
     }
   }
 
-  await prisma.event.update({
-    where: {
-      id: event.id,
-    },
-    data: {
-      googleCalendarEventId: null,
-      googleCalendarSyncedAt: null,
-    },
-  });
-
-  return true;
+  return deletedCount;
 };

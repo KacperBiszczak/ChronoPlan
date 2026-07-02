@@ -26,6 +26,7 @@ model User {
 
   chatMessages             ChatMessage[]
   googleCalendarConnection GoogleCalendarConnection?
+  googleCalendarEventSyncs GoogleCalendarEventSync[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,8 +45,7 @@ model Event {
   latitude        Float?
   longitude       Float?
 
-  googleCalendarEventId  String?
-  googleCalendarSyncedAt DateTime?
+  googleCalendarSyncs GoogleCalendarEventSync[]
 
   creatorId Int
   creator   User @relation(fields: [creatorId], references: [id])
@@ -167,6 +167,26 @@ model GoogleCalendarConnection {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model GoogleCalendarEventSync {
+  id Int @id @default(autoincrement())
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  googleCalendarEventId String
+  syncedAt              DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 enum DateVoteStatus {

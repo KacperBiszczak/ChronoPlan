@@ -2,6 +2,28 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'api_client.dart';
 
+class GoogleCalendarEventStatus {
+  final bool connected;
+  final bool synced;
+  final DateTime? syncedAt;
+
+  GoogleCalendarEventStatus({
+    required this.connected,
+    required this.synced,
+    required this.syncedAt,
+  });
+
+  factory GoogleCalendarEventStatus.fromJson(Map<String, dynamic> json) {
+    return GoogleCalendarEventStatus(
+      connected: json['connected'] == true,
+      synced: json['synced'] == true,
+      syncedAt: json['syncedAt'] == null
+          ? null
+          : DateTime.parse(json['syncedAt']).toLocal(),
+    );
+  }
+}
+
 class GoogleCalendarService {
   final _dio = ApiClient.dio;
 
@@ -9,6 +31,14 @@ class GoogleCalendarService {
     final response = await _dio.get('/google-calendar/status');
 
     return response.data['connected'] == true;
+  }
+
+  Future<GoogleCalendarEventStatus> getEventStatus(int eventId) async {
+    final response = await _dio.get('/google-calendar/status/event/$eventId');
+
+    return GoogleCalendarEventStatus.fromJson(
+      Map<String, dynamic>.from(response.data),
+    );
   }
 
   Future<void> connectGoogleCalendar({

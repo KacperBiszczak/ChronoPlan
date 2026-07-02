@@ -10,7 +10,19 @@ class AppSnackBar {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  static void info(
+    BuildContext context,
+    String message,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -28,18 +40,7 @@ class AppSnackBar {
             fallback: fallback,
           ),
         ),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  static void info(
-    BuildContext context,
-    String message,
-  ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

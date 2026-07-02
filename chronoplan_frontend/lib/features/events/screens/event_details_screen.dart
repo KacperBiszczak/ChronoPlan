@@ -37,7 +37,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   final participantService = ParticipantService();
   final googleCalendarService = GoogleCalendarService();
   
-  late Future<bool> googleCalendarStatusFuture;
+  late Future<GoogleCalendarEventStatus> googleCalendarStatusFuture;
 
   bool isGoogleCalendarActionLoading = false;
 
@@ -57,7 +57,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
     
     loadCurrentUser();
 
-    googleCalendarStatusFuture = googleCalendarService.getStatus();
+    googleCalendarStatusFuture = googleCalendarService.getEventStatus(widget.eventId);
   }
 
   @override
@@ -741,10 +741,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   }
 
   Widget buildCalendarSection(EventModel event) {
-    return FutureBuilder<bool>(
+    return FutureBuilder<GoogleCalendarEventStatus>(
       future: googleCalendarStatusFuture,
       builder: (context, snapshot) {
-        final isConnected = snapshot.data == true;
+        final status = snapshot.data;
+
+        final isConnected = status?.connected == true;
+        final isSynced = status?.synced == true;
+        final syncedAt = status?.syncedAt;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return Card(
@@ -778,20 +782,26 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                 const SizedBox(height: 12),
                 Text(
                   isLoading
-                      ? 'Sprawdzanie połączenia...'
-                      : isConnected
-                          ? 'Konto Google Calendar jest połączone.'
-                          : 'Konto Google Calendar nie jest jeszcze połączone.',
+                    ? 'Sprawdzanie połączenia...'
+                    : isConnected
+                        ? isSynced
+                            ? 'To wydarzenie jest dodane do Twojego Google Calendar.'
+                            : 'Konto Google Calendar jest połączone. Możesz dodać to wydarzenie do swojego kalendarza.'
+                        : 'Konto Google Calendar nie jest jeszcze połączone.',
                   style: TextStyle(
-                    color: isConnected ? Colors.green.shade700 : Colors.orange.shade800,
+                    color: isConnected
+                        ? isSynced
+                            ? Colors.green.shade700
+                            : Colors.blue.shade700
+                        : Colors.orange.shade800,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
 
-                if (event.googleCalendarSyncedAt != null) ...[
+                if (syncedAt != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Ostatnia synchronizacja: ${AppFormatters.dateTime(event.googleCalendarSyncedAt!)}',
+                    'Ostatnia synchronizacja: ${AppFormatters.dateTime(syncedAt)}',
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontSize: 13,
@@ -835,9 +845,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                               : null,
                             icon: const Icon(Icons.sync),
                             label: Text(
-                              event.googleCalendarEventId == null
-                                  ? 'Synchronizuj'
-                                  : 'Synchronizuj ponownie',
+                              isSynced ? 'Synchronizuj ponownie' : 'Synchronizuj',
                             ),
                           ),
                         ),
@@ -860,7 +868,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                       ),
                     ],
 
-                    if (isConnected && event.googleCalendarEventId != null) ...[
+                    if (isConnected && isSynced) ...[
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -933,10 +941,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
 
       AppSnackBar.success(
         context,
-        'Wydarzenie zsynchronizowane z Google Calendar',
+        'Wydarzenie zostało dodane do Twojego Google Calendar',
       );
 
       await refreshEvent();
+      await refreshGoogleCalendarStatus();
+
     } catch (e) {
       if (!mounted) return;
 
@@ -949,7 +959,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   }
 
   Future<void> refreshGoogleCalendarStatus() async {
-    final future = googleCalendarService.getStatus();
+    final future = googleCalendarService.getEventStatus(widget.eventId);
 
     setState(() {
       googleCalendarStatusFuture = future;
@@ -963,7 +973,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
       context,
       title: 'Odłącz Google Calendar',
       message:
-          'Czy na pewno chcesz odłączyć konto Google Calendar? Powiązania Google zostaną usunięte z Twoich wydarzeń w ChronoPlan.',
+          'Czy na pewno chcesz usunąć to wydarzenie ze swojego Google Calendar?',
       confirmText: 'Odłącz',
       cancelText: 'Anuluj',
       isDanger: true,
@@ -978,11 +988,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
 
       AppSnackBar.success(
         context,
-        'Google Calendar został odłączony',
+        'Wydarzenie zostało usunięte z Twojego Google Calendar',
       );
 
-      await refreshGoogleCalendarStatus();
       await refreshEvent();
+      await refreshGoogleCalendarStatus();
+
     } catch (e) {
       if (!mounted) return;
 
@@ -1014,10 +1025,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
 
       AppSnackBar.success(
         context,
-        'Powiązanie z Google Calendar zostało usunięte',
+        'Powiązanie z Twoim Google Calendar zostało usunięte',
       );
 
       await refreshEvent();
+      await refreshGoogleCalendarStatus();
+      
     } catch (e) {
       if (!mounted) return;
 
@@ -1053,6 +1066,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
       );
 
       await refreshEvent();
+      await refreshGoogleCalendarStatus();
+
     } catch (e) {
       if (!mounted) return;
 

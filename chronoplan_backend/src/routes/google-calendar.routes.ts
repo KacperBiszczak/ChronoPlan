@@ -4,7 +4,7 @@ import { google } from "googleapis";
 
 import { prisma } from "../lib/prisma";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { isEventOrganizer } from "../lib/event-access";
+import { canAccessEvent } from "../lib/event-access";
 
 const router = Router();
 
@@ -347,22 +347,67 @@ router.get("/callback", async (req, res) => {
 
 /**
  * @swagger
- * /google-calendar/status:
+ * /google-calendar/status/event/{eventId}:
  *   get:
- *     summary: Sprawdza, czy użytkownik ma połączony Google Calendar
+ *     summary: Sprawdza status synchronizacji wydarzenia dla zalogowanego użytkownika
+ *     description: Zwraca informację, czy użytkownik ma połączone konto Google Calendar oraz czy konkretne wydarzenie jest dodane do jego kalendarza.
  *     tags:
  *       - Google Calendar
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia ChronoPlan
+ *     responses:
+ *       200:
+ *         description: Status połączenia i synchronizacji
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 connected:
+ *                   type: boolean
+ *                   example: true
+ *                 synced:
+ *                   type: boolean
+ *                   example: true
+ *                 syncedAt:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "2026-07-02T12:30:00.000Z"
+ *       403:
+ *         description: Brak dostępu do wydarzenia
  */
-router.get("/status", authMiddleware, async (req, res) => {
+router.get("/status/event/:eventId", authMiddleware, async (req, res) => {
   try {
     const user = (req as any).user;
     const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
 
     if (!userId) {
       res.status(401).json({
         message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await canAccessEvent(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Nie masz dostępu do tego wydarzenia",
       });
       return;
     }
@@ -373,12 +418,23 @@ router.get("/status", authMiddleware, async (req, res) => {
       },
     });
 
+    const sync = await prisma.googleCalendarEventSync.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+    });
+
     res.json({
       connected: Boolean(connection?.refreshToken),
+      synced: Boolean(sync),
+      syncedAt: sync?.syncedAt ?? null,
     });
   } catch {
     res.status(500).json({
-      message: "Błąd sprawdzania połączenia Google Calendar",
+      message: "Błąd sprawdzania statusu synchronizacji Google Calendar",
     });
   }
 });
@@ -387,11 +443,26 @@ router.get("/status", authMiddleware, async (req, res) => {
  * @swagger
  * /google-calendar/sync-event/{eventId}:
  *   post:
- *     summary: Synchronizuje wydarzenie z Google Calendar
+ *     summary: Synchronizuje wydarzenie z Google Calendar zalogowanego użytkownika
+ *     description: Dodaje lub aktualizuje wydarzenie w prywatnym Google Calendar aktualnie zalogowanego użytkownika. Każdy użytkownik ma osobne powiązanie z wydarzeniem.
  *     tags:
  *       - Google Calendar
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia ChronoPlan
+ *     responses:
+ *       200:
+ *         description: Wydarzenie zsynchronizowane z Google Calendar użytkownika
+ *       400:
+ *         description: Brak połączenia z Google Calendar lub nieprawidłowe ID
+ *       403:
+ *         description: Brak dostępu do wydarzenia
  */
 router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
   try {
@@ -413,11 +484,11 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
       return;
     }
 
-    const event = await isEventOrganizer(eventId, userId);
+    const event = await canAccessEvent(eventId, userId);
 
     if (!event) {
       res.status(403).json({
-        message: "Tylko organizator może synchronizować wydarzenie z Google Calendar",
+        message: "Nie masz dostępu do tego wydarzenia",
       });
       return;
     }
@@ -435,33 +506,42 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
       return;
     }
 
+    const existingSync = await prisma.googleCalendarEventSync.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+    });
+
     const oauthClient = getOAuthClient();
 
     oauthClient.setCredentials({
-    refresh_token: connection.refreshToken,
+      refresh_token: connection.refreshToken,
 
-    ...(connection.accessToken
+      ...(connection.accessToken
         ? {
             access_token: connection.accessToken,
-        }
+          }
         : {}),
 
-    ...(connection.scope
+      ...(connection.scope
         ? {
             scope: connection.scope,
-        }
+          }
         : {}),
 
-    ...(connection.tokenType
+      ...(connection.tokenType
         ? {
             token_type: connection.tokenType,
-        }
+          }
         : {}),
 
-    ...(connection.expiryDate
+      ...(connection.expiryDate
         ? {
             expiry_date: connection.expiryDate.getTime(),
-        }
+          }
         : {}),
     });
 
@@ -473,7 +553,7 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
     const locationParts = [
       event.locationName,
       event.locationAddress,
-    ].filter((value) => value && value.trim().length > 0);
+    ].filter((value): value is string => Boolean(value && value.trim().length > 0));
 
     const googleEvent = {
       summary: event.title,
@@ -489,7 +569,7 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
       },
     };
 
-    let googleCalendarEventId = event.googleCalendarEventId;
+    let googleCalendarEventId = existingSync?.googleCalendarEventId ?? null;
 
     if (googleCalendarEventId) {
       try {
@@ -513,20 +593,41 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
         requestBody: googleEvent,
       });
 
-      googleCalendarEventId = createdEvent.data.id ?? null;
+      const createdGoogleCalendarEventId = createdEvent.data.id;
+
+      if (!createdGoogleCalendarEventId) {
+        res.status(500).json({
+          message: "Google Calendar nie zwrócił ID wydarzenia",
+        });
+        return;
+      }
+
+      googleCalendarEventId = createdGoogleCalendarEventId;
     }
 
-    const updatedEvent = await prisma.event.update({
+    const sync = await prisma.googleCalendarEventSync.upsert({
       where: {
-        id: eventId,
+        eventId_userId: {
+          eventId,
+          userId,
+        },
       },
-      data: {
+      update: {
         googleCalendarEventId,
-        googleCalendarSyncedAt: new Date(),
+        syncedAt: new Date(),
+      },
+      create: {
+        eventId,
+        userId,
+        googleCalendarEventId,
+        syncedAt: new Date(),
       },
     });
 
-    res.json(updatedEvent);
+    res.json({
+      message: "Wydarzenie zostało zsynchronizowane z Google Calendar",
+      sync,
+    });
   } catch (error) {
     res.status(getGoogleErrorStatus(error)).json({
       message: getGoogleErrorMessage(
@@ -541,11 +642,17 @@ router.post("/sync-event/:eventId", authMiddleware, async (req, res) => {
  * @swagger
  * /google-calendar/disconnect:
  *   delete:
- *     summary: Odłącza konto Google Calendar
+ *     summary: Odłącza Google Calendar zalogowanego użytkownika
+ *     description: Usuwa tokeny Google Calendar użytkownika, usuwa jego prywatne synchronizacje wydarzeń i próbuje cofnąć token po stronie Google.
  *     tags:
  *       - Google Calendar
  *     security:
  *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Google Calendar został odłączony
+ *       401:
+ *         description: Brak autoryzacji
  */
 router.delete("/disconnect", authMiddleware, async (req, res) => {
   try {
@@ -559,6 +666,23 @@ router.delete("/disconnect", authMiddleware, async (req, res) => {
       return;
     }
 
+    const connection = await prisma.googleCalendarConnection.findUnique({
+      where: {
+        userId,
+      },
+    });
+
+    if (connection?.refreshToken) {
+      try {
+        const oauthClient = getOAuthClient();
+
+        await oauthClient.revokeToken(connection.refreshToken);
+      } catch {
+        // Nie blokujemy odłączenia konta w ChronoPlan,
+        // jeśli Google nie pozwoli cofnąć tokenu.
+      }
+    }
+
     await prisma.$transaction([
       prisma.googleCalendarConnection.deleteMany({
         where: {
@@ -566,13 +690,9 @@ router.delete("/disconnect", authMiddleware, async (req, res) => {
         },
       }),
 
-      prisma.event.updateMany({
+      prisma.googleCalendarEventSync.deleteMany({
         where: {
-          creatorId: userId,
-        },
-        data: {
-          googleCalendarEventId: null,
-          googleCalendarSyncedAt: null,
+          userId,
         },
       }),
     ]);
@@ -591,11 +711,26 @@ router.delete("/disconnect", authMiddleware, async (req, res) => {
  * @swagger
  * /google-calendar/delete-event/{eventId}:
  *   delete:
- *     summary: Usuwa powiązane wydarzenie z Google Calendar
+ *     summary: Usuwa wydarzenie z Google Calendar zalogowanego użytkownika
+ *     description: Usuwa prywatną kopię wydarzenia z Google Calendar aktualnie zalogowanego użytkownika. Nie usuwa wydarzenia z ChronoPlan ani z kalendarzy innych uczestników.
  *     tags:
  *       - Google Calendar
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia ChronoPlan
+ *     responses:
+ *       200:
+ *         description: Wydarzenie usunięte z Google Calendar użytkownika
+ *       400:
+ *         description: Wydarzenie nie jest zsynchronizowane z kalendarzem użytkownika
+ *       403:
+ *         description: Brak dostępu do wydarzenia
  */
 router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
   try {
@@ -617,18 +752,27 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
       return;
     }
 
-    const event = await isEventOrganizer(eventId, userId);
+    const event = await canAccessEvent(eventId, userId);
 
     if (!event) {
       res.status(403).json({
-        message: "Tylko organizator może usunąć wydarzenie z Google Calendar",
+        message: "Nie masz dostępu do tego wydarzenia",
       });
       return;
     }
 
-    if (!event.googleCalendarEventId) {
+    const sync = await prisma.googleCalendarEventSync.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+    });
+
+    if (!sync) {
       res.status(400).json({
-        message: "Wydarzenie nie jest zsynchronizowane z Google Calendar",
+        message: "To wydarzenie nie jest zsynchronizowane z Twoim Google Calendar",
       });
       return;
     }
@@ -684,7 +828,7 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
     try {
       await calendar.events.delete({
         calendarId: "primary",
-        eventId: event.googleCalendarEventId,
+        eventId: sync.googleCalendarEventId,
       });
     } catch (error) {
       if (!isGoogleCalendarEventNotFoundError(error)) {
@@ -692,20 +836,19 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
       }
 
       // Jeśli wydarzenia już nie ma w Google Calendar,
-      // traktujemy to jak poprawne usunięcie i czyścimy powiązanie.
+      // czyścimy tylko lokalne powiązanie użytkownika.
     }
 
-    const updatedEvent = await prisma.event.update({
+    await prisma.googleCalendarEventSync.deleteMany({
       where: {
-        id: eventId,
-      },
-      data: {
-        googleCalendarEventId: null,
-        googleCalendarSyncedAt: null,
+        eventId,
+        userId,
       },
     });
 
-    res.json(updatedEvent);
+    res.json({
+      message: "Wydarzenie zostało usunięte z Twojego Google Calendar",
+    });
   } catch (error) {
     res.status(getGoogleErrorStatus(error)).json({
       message: getGoogleErrorMessage(
@@ -720,11 +863,24 @@ router.delete("/delete-event/:eventId", authMiddleware, async (req, res) => {
  * @swagger
  * /google-calendar/clear-event-link/{eventId}:
  *   patch:
- *     summary: Czyści powiązanie wydarzenia z Google Calendar bez usuwania wydarzenia z Google
+ *     summary: Czyści powiązanie wydarzenia z Google Calendar użytkownika
+ *     description: Usuwa lokalne powiązanie między wydarzeniem ChronoPlan a Google Calendar aktualnie zalogowanego użytkownika. Nie usuwa wydarzenia z Google Calendar.
  *     tags:
  *       - Google Calendar
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID wydarzenia ChronoPlan
+ *     responses:
+ *       200:
+ *         description: Powiązanie zostało usunięte
+ *       403:
+ *         description: Brak dostępu do wydarzenia
  */
 router.patch("/clear-event-link/:eventId", authMiddleware, async (req, res) => {
   try {
@@ -746,26 +902,25 @@ router.patch("/clear-event-link/:eventId", authMiddleware, async (req, res) => {
       return;
     }
 
-    const event = await isEventOrganizer(eventId, userId);
+    const event = await canAccessEvent(eventId, userId);
 
     if (!event) {
       res.status(403).json({
-        message: "Tylko organizator może usunąć powiązanie Google Calendar",
+        message: "Nie masz dostępu do tego wydarzenia",
       });
       return;
     }
 
-    const updatedEvent = await prisma.event.update({
+    await prisma.googleCalendarEventSync.deleteMany({
       where: {
-        id: eventId,
-      },
-      data: {
-        googleCalendarEventId: null,
-        googleCalendarSyncedAt: null,
+        eventId,
+        userId,
       },
     });
 
-    res.json(updatedEvent);
+    res.json({
+      message: "Powiązanie z Google Calendar zostało usunięte",
+    });
   } catch {
     res.status(500).json({
       message: "Błąd usuwania powiązania Google Calendar",
