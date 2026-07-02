@@ -38,6 +38,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final googleCalendarService = GoogleCalendarService();
   
   late Future<GoogleCalendarEventStatus> googleCalendarStatusFuture;
+  late Future<bool> reminderStatusFuture;
 
   bool isGoogleCalendarActionLoading = false;
 
@@ -56,6 +57,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     loadCurrentUser();
 
     googleCalendarStatusFuture = googleCalendarService.getEventStatus(widget.eventId);
+    reminderStatusFuture = NotificationService.isEventReminderScheduled(widget.eventId);
   }
 
   @override
@@ -609,18 +611,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> scheduleReminder(EventModel event) async {
-    final reminderDate = event.date.subtract(
-      const Duration(hours: 1),
-    );
-
-    if (reminderDate.isBefore(DateTime.now())) {
-      AppSnackBar.info(
-        context,
-        'Nie można ustawić przypomnienia — wydarzenie zaczyna się za mniej niż godzinę lub już minęło',
-      );
-      return;
-    }
-
     try {
       await NotificationService.scheduleEventReminder(
         eventId: event.id,
@@ -634,6 +624,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         context,
         'Przypomnienie zostało ustawione',
       );
+
+      await refreshReminderStatus();
     } catch (e) {
       if (!mounted) return;
 
@@ -643,6 +635,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         fallback: 'Nie udało się ustawić przypomnienia',
       );
     }
+  }
+
+  Future<void> refreshReminderStatus() async {
+    final future = NotificationService.isEventReminderScheduled(widget.eventId);
+
+    setState(() {
+      reminderStatusFuture = future;
+    });
+
+    await future;
   }
 
   Future<void> cancelReminder(EventModel event) async {
@@ -655,6 +657,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         context,
         'Przypomnienie zostało anulowane',
       );
+
+      await refreshReminderStatus();
     } catch (e) {
       if (!mounted) return;
 
@@ -667,59 +671,88 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Widget buildNotificationSection(EventModel event) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return FutureBuilder<bool>(
+      future: reminderStatusFuture,
+      builder: (context, snapshot) {
+        final isScheduled = snapshot.data == true;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        final canSchedule = event.date.isAfter(
+          DateTime.now().add(const Duration(hours: 1)),
+        );
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.notifications_active_outlined,
-                  color: Colors.blue.shade700,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active_outlined,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Przypomnienie',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Odśwież status',
+                      onPressed: refreshReminderStatus,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Powiadomienia',
+                const SizedBox(height: 12),
+                Text(
+                  isLoading
+                      ? 'Sprawdzanie przypomnienia...'
+                      : isScheduled
+                          ? 'Przypomnienie jest ustawione godzinę przed wydarzeniem.'
+                          : canSchedule
+                              ? 'Możesz ustawić lokalne przypomnienie godzinę przed wydarzeniem.'
+                              : 'Nie można ustawić przypomnienia, bo wydarzenie zaczyna się za mniej niż godzinę lub już minęło.',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    color: isScheduled
+                        ? Colors.green.shade700
+                        : canSchedule
+                            ? Colors.blue.shade700
+                            : Colors.orange.shade800,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: isScheduled
+                      ? OutlinedButton.icon(
+                          onPressed: () {
+                            cancelReminder(event);
+                          },
+                          icon: const Icon(Icons.notifications_off_outlined),
+                          label: const Text('Anuluj przypomnienie'),
+                        )
+                      : FilledButton.icon(
+                          onPressed: canSchedule
+                              ? () {
+                                  scheduleReminder(event);
+                                }
+                              : null,
+                          icon: const Icon(Icons.notifications_outlined),
+                          label: const Text('Ustaw przypomnienie'),
+                        ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Możesz ustawić lokalne przypomnienie godzinę przed rozpoczęciem wydarzenia.',
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      scheduleReminder(event);
-                    },
-                    icon: const Icon(Icons.notifications_outlined),
-                    label: const Text('Przypomnij'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      cancelReminder(event);
-                    },
-                    icon: const Icon(Icons.notifications_off_outlined),
-                    label: const Text('Anuluj'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
