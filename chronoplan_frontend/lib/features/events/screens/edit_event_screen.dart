@@ -6,7 +6,6 @@ import 'location_picker_screen.dart';
 import '../models/event_model.dart';
 
 import '../services/event_service.dart';
-import '../../../core/services/google_calendar_service.dart';
 
 class EditEventScreen extends StatefulWidget {
   final int eventId;
@@ -24,7 +23,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
   final eventService = EventService();
-  final googleCalendarService = GoogleCalendarService();
   final locationNameController = TextEditingController();
   final locationAddressController = TextEditingController();
   final latitudeController = TextEditingController();
@@ -235,14 +233,6 @@ class _EditEventScreenState extends State<EditEventScreen> {
         latitude: latitude,
         longitude: longitude,
       );
-
-      if (loadedEvent?.googleCalendarEventId != null) {
-        try {
-          await googleCalendarService.syncEvent(widget.eventId);
-        } catch (_) {
-          // Nie blokujemy zapisu wydarzenia, jeśli synchronizacja Google się nie uda.
-        }
-      }
 
       if (!mounted) return;
 

@@ -7,6 +7,7 @@ import {
   updateEventSchema,
 } from "../validators/event.validator";
 import { canAccessEvent } from "../lib/event-access";
+import { updateExistingGoogleCalendarEventForEvent } from "../lib/google-calendar-event-sync";
 
 const router = Router();
 
@@ -281,6 +282,12 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
         longitude,
       },
     });
+
+    try {
+      await updateExistingGoogleCalendarEventForEvent(updatedEvent.id);
+    } catch {
+      // Nie blokujemy edycji wydarzenia, jeśli Google Calendar nie odpowie.
+    }
 
     res.json(updatedEvent);
 });
