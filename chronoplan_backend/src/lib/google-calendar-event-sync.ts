@@ -292,3 +292,100 @@ export const deleteExistingGoogleCalendarEventForEvent = async (
 
   return deletedCount;
 };
+
+export const deleteGoogleCalendarEventSyncForUser = async (
+  eventId: number,
+  userId: number,
+) => {
+  const sync = await prisma.googleCalendarEventSync.findUnique({
+    where: {
+      eventId_userId: {
+        eventId,
+        userId,
+      },
+    },
+    include: {
+      user: {
+        include: {
+          googleCalendarConnection: true,
+        },
+      },
+    },
+  });
+
+  if (!sync) {
+    return false;
+  }
+
+  const connection = sync.user.googleCalendarConnection;
+
+  if (!connection?.refreshToken) {
+    await prisma.googleCalendarEventSync.deleteMany({
+      where: {
+        eventId,
+        userId,
+      },
+    });
+
+    return false;
+  }
+
+  const oauthClient = getOAuthClient();
+
+  if (!oauthClient) {
+    return false;
+  }
+
+  oauthClient.setCredentials({
+    refresh_token: connection.refreshToken,
+
+    ...(connection.accessToken
+      ? {
+          access_token: connection.accessToken,
+        }
+      : {}),
+
+    ...(connection.scope
+      ? {
+          scope: connection.scope,
+        }
+      : {}),
+
+    ...(connection.tokenType
+      ? {
+          token_type: connection.tokenType,
+        }
+      : {}),
+
+    ...(connection.expiryDate
+      ? {
+          expiry_date: connection.expiryDate.getTime(),
+        }
+      : {}),
+  });
+
+  const calendar = google.calendar({
+    version: "v3",
+    auth: oauthClient,
+  });
+
+  try {
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: sync.googleCalendarEventId,
+    });
+  } catch (error) {
+    if (!isGoogleCalendarEventNotFoundError(error)) {
+      // Nie blokujemy czyszczenia lokalnego powiązania.
+    }
+  }
+
+  await prisma.googleCalendarEventSync.deleteMany({
+    where: {
+      eventId,
+      userId,
+    },
+  });
+
+  return true;
+};

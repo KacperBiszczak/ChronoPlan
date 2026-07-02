@@ -4,6 +4,9 @@ import '../../../core/utils/app_snack_bar.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
+import '../../../core/services/google_calendar_service.dart';
+import '../../../core/utils/app_confirm_dialog.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -11,7 +14,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
   final authService = AuthService();
 
   final nameController = TextEditingController();
@@ -20,6 +23,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final phoneController = TextEditingController();
   final bioController = TextEditingController();
 
+  final googleCalendarService = GoogleCalendarService();
+
+  late Future<bool> googleCalendarStatusFuture;
+
+  bool isGoogleCalendarLoading = false;
+
   late Future<UserModel> userFuture;
 
   bool isSaving = false;
@@ -27,12 +36,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    
+    WidgetsBinding.instance.addObserver(this);
+
+    googleCalendarStatusFuture = googleCalendarService.getStatus();
 
     userFuture = loadProfile();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     nameController.dispose();
     emailController.dispose();
     avatarUrlController.dispose();
@@ -40,6 +54,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bioController.dispose();
 
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      refreshGoogleCalendarStatus();
+    }
   }
 
   Future<UserModel> loadProfile() async {
@@ -226,6 +249,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : const Icon(Icons.save_outlined),
           label: Text(isSaving ? 'Zapisywanie...' : 'Zapisz profil'),
         ),
+        const SizedBox(height: 16),
+        buildGoogleCalendarSection(),
       ],
     );
   }
@@ -288,6 +313,180 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return buildProfileForm();
         },
       ),
+    );
+  }
+
+  Future<void> refreshGoogleCalendarStatus() async {
+    final future = googleCalendarService.getStatus();
+
+    setState(() {
+      googleCalendarStatusFuture = future;
+    });
+
+    await future;
+  }
+
+  Future<void> connectGoogleCalendar() async {
+    if (isGoogleCalendarLoading) return;
+
+    setState(() {
+      isGoogleCalendarLoading = true;
+    });
+
+    try {
+      await googleCalendarService.connectGoogleCalendar(
+        returnPath: '/#/profile',
+      );
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Otworzono autoryzację Google Calendar. Po powrocie do aplikacji status odświeży się automatycznie.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się połączyć Google Calendar',
+      );
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        isGoogleCalendarLoading = false;
+      });
+    }
+  }
+
+  Future<void> disconnectGoogleCalendar() async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Odłącz Google Calendar',
+      message:
+          'Czy na pewno chcesz odłączyć Google Calendar? Aplikacja usunie lokalne powiązania wydarzeń i spróbuje cofnąć dostęp do Twojego konta Google.',
+      confirmText: 'Odłącz',
+      cancelText: 'Anuluj',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
+    if (isGoogleCalendarLoading) return;
+
+    setState(() {
+      isGoogleCalendarLoading = true;
+    });
+
+    try {
+      await googleCalendarService.disconnectGoogleCalendar();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(
+        context,
+        'Google Calendar został odłączony',
+      );
+
+      await refreshGoogleCalendarStatus();
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się odłączyć Google Calendar',
+      );
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        isGoogleCalendarLoading = false;
+      });
+    }
+  }
+
+  Widget buildGoogleCalendarSection() {
+    return FutureBuilder<bool>(
+      future: googleCalendarStatusFuture,
+      builder: (context, snapshot) {
+        final isConnected = snapshot.data == true;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Google Calendar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Odśwież status',
+                      onPressed: isGoogleCalendarLoading
+                          ? null
+                          : refreshGoogleCalendarStatus,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isLoading
+                      ? 'Sprawdzanie połączenia...'
+                      : isConnected
+                          ? 'Google Calendar jest połączony z Twoim kontem.'
+                          : 'Google Calendar nie jest jeszcze połączony.',
+                  style: TextStyle(
+                    color: isConnected
+                        ? Colors.green.shade700
+                        : Colors.orange.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (isGoogleCalendarLoading) ...[
+                  const SizedBox(height: 12),
+                  const LinearProgressIndicator(),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: isConnected
+                      ? OutlinedButton.icon(
+                          onPressed: isGoogleCalendarLoading
+                              ? null
+                              : disconnectGoogleCalendar,
+                          icon: const Icon(Icons.link_off),
+                          label: const Text('Odłącz Google Calendar'),
+                        )
+                      : FilledButton.icon(
+                          onPressed: isGoogleCalendarLoading
+                              ? null
+                              : connectGoogleCalendar,
+                          icon: const Icon(Icons.link),
+                          label: const Text('Połącz Google Calendar'),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

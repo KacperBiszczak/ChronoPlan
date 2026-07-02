@@ -7,6 +7,7 @@ import {
   inviteParticipantSchema,
   updateParticipantStatusSchema,
 } from "../validators/participant.validator";
+import { deleteGoogleCalendarEventSyncForUser } from "../lib/google-calendar-event-sync";
 
 const router = Router();
 
@@ -404,6 +405,18 @@ router.patch("/:id/status", authMiddleware, validateBody(updateParticipantStatus
         },
     });
 
+    if (updatedParticipant.status !== "ACCEPTED") {
+      try {
+        await deleteGoogleCalendarEventSyncForUser(
+          updatedParticipant.eventId,
+          updatedParticipant.userId,
+        );
+      } catch {
+        // Nie blokujemy zmiany statusu zaproszenia,
+        // jeśli Google Calendar nie odpowie.
+      }
+    }
+
     res.json(updatedParticipant);
     } catch (error) {
         console.error(error);
@@ -594,6 +607,18 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         message: "Nie można usunąć organizatora wydarzenia",
       });
       return;
+    }
+
+    if (participant) {
+      try {
+        await deleteGoogleCalendarEventSyncForUser(
+          participant.eventId,
+          participant.userId,
+        );
+      } catch {
+        // Nie blokujemy usuwania uczestnika,
+        // jeśli Google Calendar nie odpowie.
+      }
     }
 
     await prisma.$transaction([

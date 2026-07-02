@@ -29,7 +29,7 @@ class EventDetailsScreen extends StatefulWidget {
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
 }
 
-class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBindingObserver {
+class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final eventService = EventService();
   final authService = AuthService();
   final taskService = TaskService();
@@ -50,8 +50,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addObserver(this);
-
     eventFuture = eventService.getEventById(widget.eventId);
     summaryFuture = loadSummary();
     
@@ -62,7 +60,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -782,12 +779,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
                 const SizedBox(height: 12),
                 Text(
                   isLoading
-                    ? 'Sprawdzanie połączenia...'
-                    : isConnected
-                        ? isSynced
-                            ? 'To wydarzenie jest dodane do Twojego Google Calendar.'
-                            : 'Konto Google Calendar jest połączone. Możesz dodać to wydarzenie do swojego kalendarza.'
-                        : 'Konto Google Calendar nie jest jeszcze połączone.',
+                      ? 'Sprawdzanie połączenia...'
+                      : isConnected
+                          ? isSynced
+                              ? 'To wydarzenie jest dodane do Twojego Google Calendar.'
+                              : 'Możesz dodać to wydarzenie do swojego Google Calendar.'
+                          : 'Najpierw połącz Google Calendar w profilu.',
                   style: TextStyle(
                     color: isConnected
                         ? isSynced
@@ -816,92 +813,70 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
 
                 const SizedBox(height: 16),
 
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                          onPressed: isGoogleCalendarActionLoading
-                              ? null
-                              : () {
-                                  runGoogleCalendarAction(() {
-                                    return connectGoogleCalendar(event);
-                                  });
-                                },
-                            icon: const Icon(Icons.link),
-                            label: Text(isConnected ? 'Połącz ponownie' : 'Połącz'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: isConnected && !isGoogleCalendarActionLoading
-                              ? () {
-                                  runGoogleCalendarAction(() {
-                                    return syncEventWithGoogleCalendar(event);
-                                  });
-                                }
-                              : null,
-                            icon: const Icon(Icons.sync),
-                            label: Text(
-                              isSynced ? 'Synchronizuj ponownie' : 'Synchronizuj',
-                            ),
-                          ),
-                        ),
-                      ],
+                if (!isConnected) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: openProfileForGoogleCalendar,
+                      icon: const Icon(Icons.settings_outlined),
+                      label: const Text('Przejdź do profilu'),
                     ),
+                  ),
+                ],
 
-                    if (isConnected) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: isGoogleCalendarActionLoading
-                            ? null
-                            : () {
-                                runGoogleCalendarAction(disconnectGoogleCalendar);
-                              },
-                          icon: const Icon(Icons.link_off),
-                          label: const Text('Odłącz Google Calendar'),
-                        ),
+                if (isConnected) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: isGoogleCalendarActionLoading
+                          ? null
+                          : () {
+                              runGoogleCalendarAction(() {
+                                return syncEventWithGoogleCalendar(event);
+                              });
+                            },
+                      icon: const Icon(Icons.sync),
+                      label: Text(
+                        isSynced ? 'Aktualizuj w Google Calendar' : 'Dodaj do Google Calendar',
                       ),
-                    ],
+                    ),
+                  ),
+                ],
 
-                    if (isConnected && isSynced) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                        onPressed: isGoogleCalendarActionLoading
-                            ? null
-                            : () {
-                                runGoogleCalendarAction(() {
-                                  return deleteEventFromGoogleCalendar(event);
-                                });
-                              },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Usuń wydarzenie z Google Calendar'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton.icon(
-                        onPressed: isGoogleCalendarActionLoading
-                            ? null
-                            : () {
-                                runGoogleCalendarAction(() {
-                                  return clearGoogleCalendarEventLink(event);
-                                });
-                              },
-                          icon: const Icon(Icons.link_off),
-                          label: const Text('Usuń tylko powiązanie'),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                if (isConnected && isSynced) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isGoogleCalendarActionLoading
+                          ? null
+                          : () {
+                              runGoogleCalendarAction(() {
+                                return deleteEventFromGoogleCalendar(event);
+                              });
+                            },
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Usuń z mojego Google Calendar'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: isGoogleCalendarActionLoading
+                          ? null
+                          : () {
+                              runGoogleCalendarAction(() {
+                                return clearGoogleCalendarEventLink(event);
+                              });
+                            },
+                      icon: const Icon(Icons.link_off),
+                      label: const Text('Usuń tylko powiązanie'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -910,27 +885,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
     );
   }
 
-  Future<void> connectGoogleCalendar(EventModel event) async {
-    try {
-      await googleCalendarService.connectGoogleCalendar(
-        returnPath: '/#/events/${event.id}',
-      );
+  Future<void> openProfileForGoogleCalendar() async {
+    await context.push('/profile');
 
-        if (!mounted) return;
+    if (!mounted) return;
 
-        AppSnackBar.success(
-          context,
-          'Otworzono autoryzację Google Calendar. Po powrocie do aplikacji status odświeży się automatycznie.',
-        );
-      } catch (e) {
-        if (!mounted) return;
-
-        AppSnackBar.error(
-          context,
-          e,
-          fallback: 'Nie udało się połączyć Google Calendar',
-        );
-      }
+    await refreshGoogleCalendarStatus();
   }
 
   Future<void> syncEventWithGoogleCalendar(EventModel event) async {
@@ -966,43 +926,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
     });
 
     await future;
-  }
-
-  Future<void> disconnectGoogleCalendar() async {
-    final confirmed = await AppConfirmDialog.show(
-      context,
-      title: 'Odłącz Google Calendar',
-      message:
-          'Czy na pewno chcesz usunąć to wydarzenie ze swojego Google Calendar?',
-      confirmText: 'Odłącz',
-      cancelText: 'Anuluj',
-      isDanger: true,
-    );
-
-    if (!mounted || !confirmed) return;
-
-    try {
-      await googleCalendarService.disconnectGoogleCalendar();
-
-      if (!mounted) return;
-
-      AppSnackBar.success(
-        context,
-        'Wydarzenie zostało usunięte z Twojego Google Calendar',
-      );
-
-      await refreshEvent();
-      await refreshGoogleCalendarStatus();
-
-    } catch (e) {
-      if (!mounted) return;
-
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się odłączyć Google Calendar',
-      );
-    }
   }
 
   Future<void> clearGoogleCalendarEventLink(EventModel event) async {
@@ -1079,16 +1002,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
     }
   }
 
-  @override
-    void didChangeAppLifecycleState(AppLifecycleState state) {
-      super.didChangeAppLifecycleState(state);
-
-      if (state == AppLifecycleState.resumed) {
-        refreshGoogleCalendarStatus();
-      }
-    }
-
-    Future<void> runGoogleCalendarAction(
+  Future<void> runGoogleCalendarAction(
     Future<void> Function() action,
   ) async {
     if (isGoogleCalendarActionLoading) return;
