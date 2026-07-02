@@ -164,16 +164,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> with WidgetsBin
     if (!mounted || !confirmed) return;
 
     try {
-      if (event.googleCalendarEventId != null) {
-        try {
-          await googleCalendarService.deleteSyncedEvent(event.id);
-        } catch (_) {
-          // Jeśli usuwanie z Google Calendar się nie uda,
-          // nie blokujemy usunięcia wydarzenia z ChronoPlan.
-        }
-      }
-
       await eventService.deleteEvent(event.id);
+
+        try {
+          await NotificationService.cancelEventReminder(event.id);
+        } catch (_) {}
 
       if (!mounted) return;
 

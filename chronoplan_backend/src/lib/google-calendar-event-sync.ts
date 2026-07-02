@@ -117,3 +117,86 @@ export const updateExistingGoogleCalendarEventForEvent = async (
 
   return true;
 };
+
+export const deleteExistingGoogleCalendarEventForEvent = async (
+  eventId: number,
+) => {
+  const event = await prisma.event.findUnique({
+    where: {
+      id: eventId,
+    },
+    include: {
+      creator: {
+        include: {
+          googleCalendarConnection: true,
+        },
+      },
+    },
+  });
+
+  if (!event?.googleCalendarEventId) {
+    return false;
+  }
+
+  const connection = event.creator.googleCalendarConnection;
+
+  if (!connection?.refreshToken) {
+    return false;
+  }
+
+  const oauthClient = getOAuthClient();
+
+  if (!oauthClient) {
+    return false;
+  }
+
+  oauthClient.setCredentials({
+    refresh_token: connection.refreshToken,
+
+    ...(connection.accessToken
+      ? {
+          access_token: connection.accessToken,
+        }
+      : {}),
+
+    ...(connection.scope
+      ? {
+          scope: connection.scope,
+        }
+      : {}),
+
+    ...(connection.tokenType
+      ? {
+          token_type: connection.tokenType,
+        }
+      : {}),
+
+    ...(connection.expiryDate
+      ? {
+          expiry_date: connection.expiryDate.getTime(),
+        }
+      : {}),
+  });
+
+  const calendar = google.calendar({
+    version: "v3",
+    auth: oauthClient,
+  });
+
+  await calendar.events.delete({
+    calendarId: "primary",
+    eventId: event.googleCalendarEventId,
+  });
+
+  await prisma.event.update({
+    where: {
+      id: event.id,
+    },
+    data: {
+      googleCalendarEventId: null,
+      googleCalendarSyncedAt: null,
+    },
+  });
+
+  return true;
+};

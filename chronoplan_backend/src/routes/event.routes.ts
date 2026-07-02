@@ -7,7 +7,7 @@ import {
   updateEventSchema,
 } from "../validators/event.validator";
 import { canAccessEvent } from "../lib/event-access";
-import { updateExistingGoogleCalendarEventForEvent } from "../lib/google-calendar-event-sync";
+import { updateExistingGoogleCalendarEventForEvent, deleteExistingGoogleCalendarEventForEvent } from "../lib/google-calendar-event-sync";
 
 const router = Router();
 
@@ -384,6 +384,13 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         message: "Tylko organizator może usunąć wydarzenie",
       });
       return;
+    }
+
+    try {
+      await deleteExistingGoogleCalendarEventForEvent(id);
+    } catch {
+      // Nie blokujemy usunięcia wydarzenia w ChronoPlan,
+      // jeśli Google Calendar nie odpowie.
     }
 
     await prisma.$transaction([
