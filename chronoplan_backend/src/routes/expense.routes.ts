@@ -5,6 +5,11 @@ import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import { createExpenseSchema, updateExpenseSchema } from "../validators/expense.validator";
 import {
+  buildBudgetSummaryForEvent,
+  serializeSettlement,
+  settlementInclude,
+} from "../lib/budget-summary";
+import {
   BudgetMode,
   ExpenseSettlementType,
   ExpenseVisibility,
@@ -324,210 +329,260 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
       return;
     }
 
-    const isOrganizer = event.creatorId === userId;
+    const summary = await buildBudgetSummaryForEvent(event, userId);
 
-    if (!isOrganizer && event.budgetMode === "PRIVATE") {
-      res.json({
-        budgetMode: event.budgetMode,
-        hidden: true,
-        totalExpenses: 0,
-        settledExpensesTotal: 0,
-        unassignedExpensesTotal: 0,
-        participantCount: 0,
-        perPersonShare: 0,
-        balances: [],
-        settlements: [],
-      });
-      return;
-    }
+    res.json(summary);
 
-    const expenseWhere =
-      isOrganizer || event.budgetMode === "SHARED"
-        ? {
-            eventId,
-          }
-        : {
-            eventId,
-            visibility: "PARTICIPANTS" as const,
-          };
-
-    const expenses = await prisma.expense.findMany({
-      where: expenseWhere,
-      include: expenseInclude,
-    });
-
-    const creator = await prisma.user.findUnique({
-      where: {
-        id: event.creatorId,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-      },
-    });
-
-    const acceptedParticipants = await prisma.eventParticipant.findMany({
-      where: {
-        eventId,
-        status: "ACCEPTED",
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
-
-    const settlementUsers = [
-      ...(creator ? [creator] : []),
-      ...acceptedParticipants
-        .map((participant) => participant.user)
-        .filter((participantUser) => participantUser.id !== event.creatorId),
-    ];
-
-    const splitExpenses = expenses.filter((expense) => {
-      return expense.settlementType === "SPLIT_EQUALLY";
-    });
-
-    const settledExpenses = splitExpenses.filter((expense) => {
-      return expense.paidById !== null;
-    });
-
-    const unassignedExpenses = splitExpenses.filter((expense) => {
-      return expense.paidById === null;
-    });
-
-    const totalExpenses = expenses.reduce((sum, expense) => {
-      return sum + expense.amount;
-    }, 0);
-
-    const settledExpensesTotal = settledExpenses.reduce((sum, expense) => {
-      return sum + expense.amount;
-    }, 0);
-
-    const unassignedExpensesTotal = unassignedExpenses.reduce((sum, expense) => {
-      return sum + expense.amount;
-    }, 0);
-
-    if (settlementUsers.length === 0) {
-      res.json({
-        budgetMode: event.budgetMode,
-        hidden: false,
-        totalExpenses,
-        settledExpensesTotal,
-        unassignedExpensesTotal,
-        participantCount: 0,
-        perPersonShare: 0,
-        balances: [],
-        settlements: [],
-      });
-      return;
-    }
-
-    const perPersonShare = settledExpensesTotal / settlementUsers.length;
-
-    const balances = settlementUsers.map((settlementUser) => {
-      const paid = settledExpenses
-        .filter((expense) => expense.paidById === settlementUser.id)
-        .reduce((sum, expense) => {
-          return sum + expense.amount;
-        }, 0);
-
-      const balance = paid - perPersonShare;
-
-      return {
-        user: settlementUser,
-        paid,
-        share: perPersonShare,
-        balance,
-      };
-    });
-
-    const creditors = balances
-      .filter((item) => item.balance > 0.01)
-      .map((item) => ({
-        user: item.user,
-        amount: item.balance,
-      }));
-
-    const debtors = balances
-      .filter((item) => item.balance < -0.01)
-      .map((item) => ({
-        user: item.user,
-        amount: Math.abs(item.balance),
-      }));
-
-    const settlements: {
-      from: {
-        id: number;
-        name: string;
-        email: string;
-        avatarUrl: string | null;
-      };
-      to: {
-        id: number;
-        name: string;
-        email: string;
-        avatarUrl: string | null;
-      };
-      amount: number;
-    }[] = [];
-
-    let debtorIndex = 0;
-    let creditorIndex = 0;
-
-    while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
-      const debtor = debtors[debtorIndex];
-      const creditor = creditors[creditorIndex];
-
-      if (!debtor || !creditor) {
-        break;
-      }
-
-      const amount = Math.min(debtor.amount, creditor.amount);
-
-      settlements.push({
-        from: debtor.user,
-        to: creditor.user,
-        amount,
-      });
-
-      debtor.amount -= amount;
-      creditor.amount -= amount;
-
-      if (debtor.amount <= 0.01) {
-        debtorIndex += 1;
-      }
-
-      if (creditor.amount <= 0.01) {
-        creditorIndex += 1;
-      }
-    }
-
-    res.json({
-      budgetMode: event.budgetMode,
-      hidden: false,
-      totalExpenses,
-      settledExpensesTotal,
-      unassignedExpensesTotal,
-      participantCount: settlementUsers.length,
-      perPersonShare,
-      balances,
-      settlements,
-    });
   } catch {
     res.status(500).json({
       message: "Błąd podsumowania wydatków",
+    });
+  }
+});
+
+router.get("/event/:eventId/settlements", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const eventId = Number(req.params.eventId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!eventId) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID wydarzenia",
+      });
+      return;
+    }
+
+    const event = await canAccessEvent(eventId, userId);
+
+    if (!event) {
+      res.status(403).json({
+        message: "Brak dostępu do rozliczeń tego wydarzenia",
+      });
+      return;
+    }
+
+    const summary = await buildBudgetSummaryForEvent(event, userId);
+
+    res.json(summary.settlements);
+  } catch {
+    res.status(500).json({
+      message: "Błąd pobierania rozliczeń",
+    });
+  }
+});
+
+router.patch(
+  "/settlements/:id/mark-paid",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userId = Number(user?.userId);
+      const id = Number(req.params.id);
+
+      if (!userId) {
+        res.status(401).json({
+          message: "Brak autoryzacji",
+        });
+        return;
+      }
+
+      if (!id) {
+        res.status(400).json({
+          message: "Nieprawidłowe ID rozliczenia",
+        });
+        return;
+      }
+
+      const settlement = await prisma.settlement.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!settlement) {
+        res.status(404).json({
+          message: "Nie znaleziono rozliczenia",
+        });
+        return;
+      }
+
+      const event = await canAccessEvent(settlement.eventId, userId);
+
+      if (!event || settlement.fromUserId !== userId) {
+        res.status(403).json({
+          message: "Tylko osoba, która ma zapłacić, może oznaczyć rozliczenie jako zapłacone",
+        });
+        return;
+      }
+
+      if (settlement.status !== "PENDING") {
+        res.status(400).json({
+          message: "Tylko rozliczenie do zapłaty można oznaczyć jako zapłacone",
+        });
+        return;
+      }
+
+      const updatedSettlement = await prisma.settlement.update({
+        where: {
+          id,
+        },
+        data: {
+          status: "MARKED_AS_PAID",
+          paidAt: new Date(),
+          confirmedAt: null,
+        },
+        include: settlementInclude,
+      });
+
+      res.json(serializeSettlement(updatedSettlement));
+    } catch {
+      res.status(500).json({
+        message: "Błąd oznaczania rozliczenia jako zapłacone",
+      });
+    }
+  },
+);
+
+router.patch("/settlements/:id/confirm", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const id = Number(req.params.id);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!id) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID rozliczenia",
+      });
+      return;
+    }
+
+    const settlement = await prisma.settlement.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!settlement) {
+      res.status(404).json({
+        message: "Nie znaleziono rozliczenia",
+      });
+      return;
+    }
+
+    const event = await canAccessEvent(settlement.eventId, userId);
+
+    if (!event || settlement.toUserId !== userId) {
+      res.status(403).json({
+        message: "Tylko odbiorca może potwierdzić otrzymanie pieniędzy",
+      });
+      return;
+    }
+
+    if (settlement.status !== "MARKED_AS_PAID") {
+      res.status(400).json({
+        message: "Potwierdzić można tylko rozliczenie oczekujące na potwierdzenie",
+      });
+      return;
+    }
+
+    const updatedSettlement = await prisma.settlement.update({
+      where: {
+        id,
+      },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+      },
+      include: settlementInclude,
+    });
+
+    res.json(serializeSettlement(updatedSettlement));
+  } catch {
+    res.status(500).json({
+      message: "Błąd potwierdzania rozliczenia",
+    });
+  }
+});
+
+router.patch("/settlements/:id/cancel", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+    const id = Number(req.params.id);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Brak autoryzacji",
+      });
+      return;
+    }
+
+    if (!id) {
+      res.status(400).json({
+        message: "Nieprawidłowe ID rozliczenia",
+      });
+      return;
+    }
+
+    const settlement = await prisma.settlement.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!settlement) {
+      res.status(404).json({
+        message: "Nie znaleziono rozliczenia",
+      });
+      return;
+    }
+
+    const organizerEvent = await isEventOrganizer(settlement.eventId, userId);
+
+    if (!organizerEvent) {
+      res.status(403).json({
+        message: "Tylko organizator może anulować rozliczenie",
+      });
+      return;
+    }
+
+    if (settlement.status === "CONFIRMED") {
+      res.status(400).json({
+        message: "Nie można anulować potwierdzonego rozliczenia",
+      });
+      return;
+    }
+
+    const updatedSettlement = await prisma.settlement.update({
+      where: {
+        id,
+      },
+      data: {
+        status: "CANCELLED",
+      },
+      include: settlementInclude,
+    });
+
+    res.json(serializeSettlement(updatedSettlement));
+  } catch {
+    res.status(500).json({
+      message: "Błąd anulowania rozliczenia",
     });
   }
 });

@@ -24,6 +24,16 @@ class ExpenseService {
     return ExpenseSummaryModel.fromJson(response.data);
   }
 
+  Future<List<ExpenseSettlementModel>> getSettlementsByEvent(
+    int eventId,
+  ) async {
+    final response = await _dio.get('/expenses/event/$eventId/settlements');
+
+    final data = response.data as List;
+
+    return data.map((item) => ExpenseSettlementModel.fromJson(item)).toList();
+  }
+
   Future<ExpenseModel> createExpense({
     required String title,
     required double amount,
@@ -57,7 +67,6 @@ class ExpenseService {
     String? category,
     String? visibility,
     String? settlementType,
-
   }) async {
     final response = await _dio.patch(
       '/expenses/$id',
@@ -76,5 +85,23 @@ class ExpenseService {
 
   Future<void> deleteExpense(int id) async {
     await _dio.delete('/expenses/$id');
+  }
+
+  Future<ExpenseSettlementModel> markSettlementAsPaid(int id) async {
+    final response = await _dio.patch('/expenses/settlements/$id/mark-paid');
+
+    return ExpenseSettlementModel.fromJson(response.data);
+  }
+
+  Future<ExpenseSettlementModel> confirmSettlement(int id) async {
+    final response = await _dio.patch('/expenses/settlements/$id/confirm');
+
+    return ExpenseSettlementModel.fromJson(response.data);
+  }
+
+  Future<ExpenseSettlementModel> cancelSettlement(int id) async {
+    final response = await _dio.patch('/expenses/settlements/$id/cancel');
+
+    return ExpenseSettlementModel.fromJson(response.data);
   }
 }

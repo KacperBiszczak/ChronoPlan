@@ -22,7 +22,9 @@ model User {
   eventParticipants EventParticipant[]
   dateVotes         DateVote[]
 
-  paidExpenses Expense[] @relation("ExpensePayer")
+  paidExpenses         Expense[]    @relation("ExpensePayer")
+  settlementsToPay     Settlement[] @relation("SettlementFrom")
+  settlementsToReceive Settlement[] @relation("SettlementTo")
 
   chatMessages             ChatMessage[]
   googleCalendarConnection GoogleCalendarConnection?
@@ -52,8 +54,9 @@ model Event {
   creatorId Int
   creator   User @relation(fields: [creatorId], references: [id])
 
-  tasks    Task[]
-  expenses Expense[]
+  tasks       Task[]
+  expenses    Expense[]
+  settlements Settlement[]
 
   chatMessages ChatMessage[]
 
@@ -96,6 +99,33 @@ model Expense {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Settlement {
+  id Int @id @default(autoincrement())
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  fromUserId Int
+  fromUser   User @relation("SettlementFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+
+  toUserId Int
+  toUser   User @relation("SettlementTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  amount Float
+  status SettlementStatus @default(PENDING)
+
+  paidAt      DateTime?
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, fromUserId, toUserId])
+  @@index([eventId])
+  @@index([fromUserId])
+  @@index([toUserId])
 }
 
 model EventParticipant {
@@ -232,4 +262,11 @@ enum ExpenseVisibility {
 enum ExpenseSettlementType {
   NONE
   SPLIT_EQUALLY
+}
+
+enum SettlementStatus {
+  PENDING
+  MARKED_AS_PAID
+  CONFIRMED
+  CANCELLED
 }

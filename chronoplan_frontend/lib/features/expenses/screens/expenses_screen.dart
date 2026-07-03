@@ -1022,6 +1022,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                 ],
 
+                if (expense.createdAt != null)
+                  Chip(
+                    avatar: const Icon(Icons.calendar_today_outlined, size: 16),
+                    label: Text(AppFormatters.date(expense.createdAt!)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+
+                Chip(
+                  avatar: const Icon(Icons.groups_outlined, size: 16),
+                  label: Text(getExpenseScopeLabel(expense)),
+                  visualDensity: VisualDensity.compact,
+                ),
+
                 const SizedBox(height: 6),
 
                 Wrap(
@@ -1149,6 +1162,467 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         .toList();
   }
 
+  Future<void> markSettlementAsPaid(ExpenseSettlementModel settlement) async {
+    try {
+      await expenseService.markSettlementAsPaid(settlement.id);
+      await refreshExpenses();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(context, 'Rozliczenie oznaczone jako zapłacone');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się oznaczyć rozliczenia jako zapłacone',
+      );
+    }
+  }
+
+  Future<void> confirmSettlement(ExpenseSettlementModel settlement) async {
+    try {
+      await expenseService.confirmSettlement(settlement.id);
+      await refreshExpenses();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(context, 'Otrzymanie pieniędzy zostało potwierdzone');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się potwierdzić rozliczenia',
+      );
+    }
+  }
+
+  Future<void> cancelSettlement(ExpenseSettlementModel settlement) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      title: 'Anulować rozliczenie?',
+      message:
+          'Rozliczenie ${settlement.from.name} → ${settlement.to.name} zostanie oznaczone jako anulowane.',
+      confirmText: 'Anuluj rozliczenie',
+      cancelText: 'Wróć',
+      isDanger: true,
+    );
+
+    if (!mounted || !confirmed) return;
+
+    try {
+      await expenseService.cancelSettlement(settlement.id);
+      await refreshExpenses();
+
+      if (!mounted) return;
+
+      AppSnackBar.success(context, 'Rozliczenie zostało anulowane');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się anulować rozliczenia',
+      );
+    }
+  }
+
+  Widget buildMetricCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.12),
+              foregroundColor: color,
+              child: Icon(icon),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppTheme.mutedText),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildTopSummary(ExpenseSummaryModel summary) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = constraints.maxWidth >= 760
+            ? (constraints.maxWidth - 36) / 4
+            : constraints.maxWidth >= 520
+            ? (constraints.maxWidth - 12) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: itemWidth,
+              child: buildMetricCard(
+                icon: Icons.payments_outlined,
+                label: 'Łączna kwota',
+                value: AppFormatters.amount(summary.totalExpenses),
+                color: AppTheme.primary,
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: buildMetricCard(
+                icon: summary.myBalance >= 0
+                    ? Icons.trending_up
+                    : Icons.trending_down,
+                label: 'Moje saldo',
+                value: formatBalance(summary.myBalance),
+                color: getBalanceColor(summary.myBalance),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: buildMetricCard(
+                icon: Icons.pending_actions_outlined,
+                label: 'Do zapłaty',
+                value: summary.pendingSettlementsCount.toString(),
+                color: AppTheme.warning,
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: buildMetricCard(
+                icon: Icons.verified_outlined,
+                label: 'Oczekuje na potwierdzenie',
+                value: summary.awaitingConfirmationSettlementsCount.toString(),
+                color: AppTheme.accent,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget buildBalancesSection(ExpenseSummaryModel summary) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AppSectionTitle(
+              title: 'Salda uczestników',
+              subtitle:
+                  'Dodatnie saldo oznacza, że ktoś powinien otrzymać pieniądze.',
+            ),
+            if (summary.balances.isEmpty)
+              const Text('Brak sald do pokazania.')
+            else
+              ...summary.balances.map((balance) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      buildExpenseUserAvatar(balance.user),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              balance.user.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              'Zapłacił ${AppFormatters.amount(balance.paid)} · udział ${AppFormatters.amount(balance.share)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formatBalance(balance.balance),
+                        style: TextStyle(
+                          color: getBalanceColor(balance.balance),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildSummaryTab(ExpenseSummaryModel summary) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppConstrainedContent(
+          maxWidth: 960,
+          children: [
+            buildTopSummary(summary),
+            const SizedBox(height: 12),
+            buildBudgetModeInfo(summary),
+            const SizedBox(height: 12),
+            buildBalancesSection(summary),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget buildExpensesTab(
+    List<ExpenseModel> expenses,
+    List<ExpenseModel> filteredExpenses,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppConstrainedContent(
+          maxWidth: 960,
+          children: [
+            if (expenses.isNotEmpty) ...[
+              buildSearchField(),
+              const SizedBox(height: 16),
+              buildSortSelector(),
+              const SizedBox(height: 16),
+            ],
+            if (expenses.isEmpty)
+              AppEmptyState(
+                icon: Icons.payments,
+                title: 'Brak wydatków',
+                message: canManageExpenses
+                    ? 'Dodaj pierwszy wydatek do tego wydarzenia.'
+                    : 'Organizator nie dodał jeszcze wydatków.',
+                scrollable: false,
+              )
+            else if (filteredExpenses.isEmpty)
+              const AppEmptyState(
+                icon: Icons.search_off,
+                title: 'Brak wyników',
+                message: 'Nie znaleziono wydatków pasujących do wyszukiwania.',
+                scrollable: false,
+              )
+            else
+              ...filteredExpenses.map(buildExpenseCard),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget buildSettlementsTab(ExpenseSummaryModel summary) {
+    final settlements = summary.settlements;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppConstrainedContent(
+          maxWidth: 960,
+          children: [
+            if (settlements.isEmpty)
+              const AppEmptyState(
+                icon: Icons.handshake_outlined,
+                title: 'Brak rozliczeń',
+                message:
+                    'W tym wydarzeniu nie ma aktualnych rozliczeń między uczestnikami.',
+                scrollable: false,
+              )
+            else ...[
+              const AppSectionTitle(
+                title: 'Rozliczenia',
+                subtitle:
+                    'Dłużnik oznacza płatność, a odbiorca potwierdza otrzymanie pieniędzy.',
+              ),
+              ...settlements.map(
+                (settlement) => buildSettlementCard(settlement, summary),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget buildSettlementsSection(ExpenseSummaryModel summary) {
+    final settlements = summary.settlements;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AppSectionTitle(
+          title: 'Rozliczenia',
+          subtitle:
+              'Dłużnik oznacza płatność, a odbiorca potwierdza otrzymanie pieniędzy.',
+        ),
+        if (settlements.isEmpty)
+          const AppEmptyState(
+            icon: Icons.handshake_outlined,
+            title: 'Brak rozliczeń',
+            message:
+                'W tym wydarzeniu nie ma aktualnych rozliczeń między uczestnikami.',
+            scrollable: false,
+          )
+        else
+          ...settlements.map(
+            (settlement) => buildSettlementCard(settlement, summary),
+          ),
+      ],
+    );
+  }
+
+  Widget buildSettlementCard(
+    ExpenseSettlementModel settlement,
+    ExpenseSummaryModel summary,
+  ) {
+    final currentUserId = summary.currentUserId;
+    final canMarkAsPaid =
+        settlement.status == 'PENDING' &&
+        settlement.fromUserId == currentUserId;
+    final canConfirm =
+        settlement.status == 'MARKED_AS_PAID' &&
+        settlement.toUserId == currentUserId;
+    final canCancel =
+        canManageExpenses &&
+        settlement.status != 'CONFIRMED' &&
+        settlement.status != 'CANCELLED';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                buildExpenseUserAvatar(settlement.from),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward, size: 18),
+                const SizedBox(width: 8),
+                buildExpenseUserAvatar(settlement.to),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${settlement.from.name} → ${settlement.to.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Text(
+                  AppFormatters.amount(settlement.amount),
+                  style: const TextStyle(
+                    color: AppTheme.primaryDark,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Chip(
+                  avatar: Icon(
+                    getSettlementStatusIcon(settlement.status),
+                    size: 16,
+                  ),
+                  label: Text(getSettlementStatusLabel(settlement.status)),
+                  backgroundColor: getSettlementStatusColor(
+                    settlement.status,
+                  ).withValues(alpha: 0.12),
+                  labelStyle: TextStyle(
+                    color: getSettlementStatusColor(settlement.status),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (settlement.paidAt != null)
+                  Chip(
+                    avatar: const Icon(Icons.payments_outlined, size: 16),
+                    label: Text(
+                      'Zapłacono ${AppFormatters.dateTime(settlement.paidAt!)}',
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                if (settlement.confirmedAt != null)
+                  Chip(
+                    avatar: const Icon(Icons.verified_outlined, size: 16),
+                    label: Text(
+                      'Potwierdzono ${AppFormatters.dateTime(settlement.confirmedAt!)}',
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            if (canMarkAsPaid || canConfirm || canCancel) ...[
+              const Divider(height: 24),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (canMarkAsPaid)
+                    FilledButton.icon(
+                      onPressed: () => markSettlementAsPaid(settlement),
+                      icon: const Icon(Icons.done_all),
+                      label: const Text('Oznacz jako zapłacone'),
+                    ),
+                  if (canConfirm)
+                    FilledButton.icon(
+                      onPressed: () => confirmSettlement(settlement),
+                      icon: const Icon(Icons.verified),
+                      label: const Text('Potwierdź otrzymanie'),
+                    ),
+                  if (canCancel)
+                    OutlinedButton.icon(
+                      onPressed: () => cancelSettlement(settlement),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Anuluj'),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1249,12 +1723,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     AppConstrainedContent(
                       maxWidth: 960,
                       children: [
+                        const AppSectionTitle(title: 'Podsumowanie'),
+                        buildTopSummary(summary),
+                        const SizedBox(height: 12),
                         buildBudgetModeInfo(summary),
                         const SizedBox(height: 12),
-
-                        buildSummaryCard(),
+                        buildBalancesSection(summary),
                         const SizedBox(height: 16),
 
+                        const AppSectionTitle(title: 'Wydatki'),
                         if (expenses.isNotEmpty) ...[
                           buildSearchField(),
                           const SizedBox(height: 16),
@@ -1307,6 +1784,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         ] else ...[
                           ...filteredExpenses.map(buildExpenseCard),
                         ],
+                        const SizedBox(height: 16),
+                        buildSettlementsSection(summary),
                       ],
                     ),
                   ],
@@ -1427,6 +1906,60 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       case 'SPLIT_EQUALLY':
       default:
         return 'Podziel po równo';
+    }
+  }
+
+  String getExpenseScopeLabel(ExpenseModel expense) {
+    if (expense.visibility == 'ORGANIZER_ONLY') {
+      return 'Dotyczy organizatora';
+    }
+
+    if (expense.settlementType == 'SPLIT_EQUALLY') {
+      return 'Dotyczy uczestników';
+    }
+
+    return 'Bez rozliczania';
+  }
+
+  String getSettlementStatusLabel(String status) {
+    switch (status) {
+      case 'MARKED_AS_PAID':
+        return 'Oczekuje na potwierdzenie';
+      case 'CONFIRMED':
+        return 'Uregulowane';
+      case 'CANCELLED':
+        return 'Anulowane';
+      case 'PENDING':
+      default:
+        return 'Do zapłaty';
+    }
+  }
+
+  IconData getSettlementStatusIcon(String status) {
+    switch (status) {
+      case 'MARKED_AS_PAID':
+        return Icons.hourglass_top_outlined;
+      case 'CONFIRMED':
+        return Icons.verified_outlined;
+      case 'CANCELLED':
+        return Icons.cancel_outlined;
+      case 'PENDING':
+      default:
+        return Icons.pending_actions_outlined;
+    }
+  }
+
+  Color getSettlementStatusColor(String status) {
+    switch (status) {
+      case 'MARKED_AS_PAID':
+        return AppTheme.accent;
+      case 'CONFIRMED':
+        return AppTheme.success;
+      case 'CANCELLED':
+        return AppTheme.mutedText;
+      case 'PENDING':
+      default:
+        return AppTheme.warning;
     }
   }
 }

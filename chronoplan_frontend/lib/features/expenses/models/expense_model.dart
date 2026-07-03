@@ -8,6 +8,8 @@ class ExpenseModel {
   final String? category;
   final String visibility;
   final String settlementType;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ExpenseModel({
     required this.id,
@@ -19,6 +21,8 @@ class ExpenseModel {
     required this.category,
     required this.visibility,
     required this.settlementType,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory ExpenseModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,8 @@ class ExpenseModel {
       category: json['category'],
       visibility: json['visibility'] ?? 'PARTICIPANTS',
       settlementType: json['settlementType'] ?? 'SPLIT_EQUALLY',
+      createdAt: _optionalDate(json['createdAt']),
+      updatedAt: _optionalDate(json['updatedAt']),
     );
   }
 }
@@ -71,6 +77,10 @@ class ExpenseSummaryModel {
   final List<ExpenseSettlementModel> settlements;
   final String budgetMode;
   final bool hidden;
+  final int? currentUserId;
+  final double myBalance;
+  final int pendingSettlementsCount;
+  final int awaitingConfirmationSettlementsCount;
 
   ExpenseSummaryModel({
     required this.totalExpenses,
@@ -82,18 +92,21 @@ class ExpenseSummaryModel {
     required this.settlements,
     required this.budgetMode,
     required this.hidden,
+    required this.currentUserId,
+    required this.myBalance,
+    required this.pendingSettlementsCount,
+    required this.awaitingConfirmationSettlementsCount,
   });
 
   factory ExpenseSummaryModel.fromJson(Map<String, dynamic> json) {
     final balancesData = json['balances'] as List? ?? [];
     final settlementsData = json['settlements'] as List? ?? [];
-    
 
     return ExpenseSummaryModel(
       totalExpenses: (json['totalExpenses'] as num).toDouble(),
       settledExpensesTotal: (json['settledExpensesTotal'] as num).toDouble(),
-      unassignedExpensesTotal:
-          (json['unassignedExpensesTotal'] as num).toDouble(),
+      unassignedExpensesTotal: (json['unassignedExpensesTotal'] as num)
+          .toDouble(),
       participantCount: json['participantCount'],
       perPersonShare: (json['perPersonShare'] as num).toDouble(),
       balances: balancesData
@@ -104,6 +117,11 @@ class ExpenseSummaryModel {
           .toList(),
       budgetMode: json['budgetMode'] ?? 'SHARED',
       hidden: json['hidden'] == true,
+      currentUserId: json['currentUserId'],
+      myBalance: ((json['myBalance'] ?? 0) as num).toDouble(),
+      pendingSettlementsCount: json['pendingSettlementsCount'] ?? 0,
+      awaitingConfirmationSettlementsCount:
+          json['awaitingConfirmationSettlementsCount'] ?? 0,
     );
   }
 }
@@ -132,21 +150,56 @@ class ExpenseBalanceModel {
 }
 
 class ExpenseSettlementModel {
+  final int id;
+  final int eventId;
+  final int fromUserId;
+  final int toUserId;
   final ExpenseUserModel from;
   final ExpenseUserModel to;
   final double amount;
+  final String status;
+  final DateTime? paidAt;
+  final DateTime? confirmedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ExpenseSettlementModel({
+    required this.id,
+    required this.eventId,
+    required this.fromUserId,
+    required this.toUserId,
     required this.from,
     required this.to,
     required this.amount,
+    required this.status,
+    required this.paidAt,
+    required this.confirmedAt,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory ExpenseSettlementModel.fromJson(Map<String, dynamic> json) {
     return ExpenseSettlementModel(
+      id: json['id'] ?? 0,
+      eventId: json['eventId'] ?? 0,
+      fromUserId: json['fromUserId'] ?? json['from']?['id'] ?? 0,
+      toUserId: json['toUserId'] ?? json['to']?['id'] ?? 0,
       from: ExpenseUserModel.fromJson(json['from']),
       to: ExpenseUserModel.fromJson(json['to']),
       amount: (json['amount'] as num).toDouble(),
+      status: json['status'] ?? 'PENDING',
+      paidAt: _optionalDate(json['paidAt']),
+      confirmedAt: _optionalDate(json['confirmedAt']),
+      createdAt: _optionalDate(json['createdAt']),
+      updatedAt: _optionalDate(json['updatedAt']),
     );
   }
+}
+
+DateTime? _optionalDate(dynamic value) {
+  if (value is! String || value.isEmpty) {
+    return null;
+  }
+
+  return DateTime.tryParse(value)?.toLocal();
 }
