@@ -29,6 +29,9 @@ class ExpenseService {
     required double amount,
     required int eventId,
     int? paidById,
+    String? category,
+    String? visibility,
+    String? settlementType,
   }) async {
     final response = await _dio.post(
       '/expenses',
@@ -37,6 +40,9 @@ class ExpenseService {
         'amount': amount,
         'eventId': eventId,
         'paidById': paidById,
+        'category': category,
+        'visibility': visibility,
+        'settlementType': settlementType,
       },
     );
 
@@ -48,6 +54,10 @@ class ExpenseService {
     required String title,
     required double amount,
     int? paidById,
+    String? category,
+    String? visibility,
+    String? settlementType,
+
   }) async {
     final response = await _dio.patch(
       '/expenses/$id',
@@ -55,6 +65,9 @@ class ExpenseService {
         'title': title,
         'amount': amount,
         'paidById': paidById,
+        'category': category,
+        'visibility': visibility,
+        'settlementType': settlementType,
       },
     );
 

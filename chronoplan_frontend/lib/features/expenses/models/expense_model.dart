@@ -5,6 +5,9 @@ class ExpenseModel {
   final int eventId;
   final int? paidById;
   final ExpenseUserModel? paidBy;
+  final String? category;
+  final String visibility;
+  final String settlementType;
 
   ExpenseModel({
     required this.id,
@@ -13,6 +16,9 @@ class ExpenseModel {
     required this.eventId,
     required this.paidById,
     required this.paidBy,
+    required this.category,
+    required this.visibility,
+    required this.settlementType,
   });
 
   factory ExpenseModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +31,9 @@ class ExpenseModel {
       paidBy: json['paidBy'] == null
           ? null
           : ExpenseUserModel.fromJson(json['paidBy']),
+      category: json['category'],
+      visibility: json['visibility'] ?? 'PARTICIPANTS',
+      settlementType: json['settlementType'] ?? 'SPLIT_EQUALLY',
     );
   }
 }
@@ -60,6 +69,8 @@ class ExpenseSummaryModel {
   final double perPersonShare;
   final List<ExpenseBalanceModel> balances;
   final List<ExpenseSettlementModel> settlements;
+  final String budgetMode;
+  final bool hidden;
 
   ExpenseSummaryModel({
     required this.totalExpenses,
@@ -69,11 +80,14 @@ class ExpenseSummaryModel {
     required this.perPersonShare,
     required this.balances,
     required this.settlements,
+    required this.budgetMode,
+    required this.hidden,
   });
 
   factory ExpenseSummaryModel.fromJson(Map<String, dynamic> json) {
     final balancesData = json['balances'] as List? ?? [];
     final settlementsData = json['settlements'] as List? ?? [];
+    
 
     return ExpenseSummaryModel(
       totalExpenses: (json['totalExpenses'] as num).toDouble(),
@@ -88,6 +102,8 @@ class ExpenseSummaryModel {
       settlements: settlementsData
           .map((item) => ExpenseSettlementModel.fromJson(item))
           .toList(),
+      budgetMode: json['budgetMode'] ?? 'SHARED',
+      hidden: json['hidden'] == true,
     );
   }
 }

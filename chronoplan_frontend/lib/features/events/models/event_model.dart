@@ -13,6 +13,8 @@ class EventModel {
   final String? googleCalendarEventId;
   final DateTime? googleCalendarSyncedAt;
 
+  final String budgetMode;
+
   EventModel({
     required this.id,
     required this.title,
@@ -25,6 +27,7 @@ class EventModel {
     required this.longitude,
     required this.googleCalendarEventId,
     required this.googleCalendarSyncedAt,
+    required this.budgetMode,
   });
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +45,7 @@ class EventModel {
       googleCalendarSyncedAt: json['googleCalendarSyncedAt'] == null
           ? null
           : DateTime.parse(json['googleCalendarSyncedAt']).toLocal(),
+      budgetMode: json['budgetMode'] ?? 'SHARED',
     );
   }
 }

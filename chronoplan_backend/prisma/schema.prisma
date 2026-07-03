@@ -38,6 +38,8 @@ model Event {
   description String?
   date        DateTime
 
+  budgetMode BudgetMode @default(SHARED)
+
   dateOptions DateOption[]
 
   locationName    String?
@@ -81,6 +83,10 @@ model Expense {
   id     Int    @id @default(autoincrement())
   title  String
   amount Float
+
+  category       String?
+  visibility     ExpenseVisibility     @default(PARTICIPANTS)
+  settlementType ExpenseSettlementType @default(SPLIT_EQUALLY)
 
   eventId Int
   event   Event @relation(fields: [eventId], references: [id])
@@ -210,4 +216,20 @@ enum TaskStatus {
   TODO
   IN_PROGRESS
   DONE
+}
+
+enum BudgetMode {
+  PRIVATE
+  SHARED
+  MIXED
+}
+
+enum ExpenseVisibility {
+  ORGANIZER_ONLY
+  PARTICIPANTS
+}
+
+enum ExpenseSettlementType {
+  NONE
+  SPLIT_EQUALLY
 }

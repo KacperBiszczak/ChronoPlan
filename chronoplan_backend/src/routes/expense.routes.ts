@@ -4,6 +4,11 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 import { canAccessEvent, isEventOrganizer } from "../lib/event-access";
 import { validateBody } from "../middlewares/validate.middleware";
 import { createExpenseSchema, updateExpenseSchema } from "../validators/expense.validator";
+import {
+  BudgetMode,
+  ExpenseSettlementType,
+  ExpenseVisibility,
+} from "@prisma/client";
 
 const expenseInclude = {
   paidBy: {
@@ -52,7 +57,15 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
   try {
     const user = (req as any).user;
     const userId = Number(user?.userId);
-    const { title, amount, eventId, paidById } = req.body;
+    const {
+      title,
+      amount,
+      eventId,
+      paidById,
+      category,
+      visibility,
+      settlementType,
+    } = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -61,19 +74,77 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
       return;
     }
 
-    const payerId = paidById ?? userId;
-
-    const payerParticipant = await prisma.eventParticipant.findFirst({
+    const event = await prisma.event.findUnique({
       where: {
-        eventId,
-        userId: payerId,
-        status: "ACCEPTED",
+        id: Number(eventId),
       },
     });
 
-    if (!payerParticipant) {
+    if (!event) {
+      res.status(404).json({
+        message: "Nie znaleziono wydarzenia",
+      });
+      return;
+    }
+
+    const parsedVisibility = parseExpenseVisibility(visibility);
+
+    if (parsedVisibility === null) {
       res.status(400).json({
-        message: "Osoba płacąca musi być uczestnikiem wydarzenia",
+        message: "Nieprawidłowa widoczność wydatku",
+      });
+      return;
+    }
+
+    const parsedSettlementType = parseExpenseSettlementType(settlementType);
+
+    if (parsedSettlementType === null) {
+      res.status(400).json({
+        message: "Nieprawidłowy typ rozliczenia wydatku",
+      });
+      return;
+    }
+
+    const defaults = getExpenseDefaultsForBudgetMode(event.budgetMode);
+
+    const finalVisibility =
+      event.budgetMode === "MIXED"
+        ? parsedVisibility ?? defaults.visibility
+        : defaults.visibility;
+
+    const finalSettlementType =
+      event.budgetMode === "MIXED"
+        ? parsedSettlementType ?? defaults.settlementType
+        : defaults.settlementType;
+
+    if (
+      finalVisibility === "ORGANIZER_ONLY" &&
+      finalSettlementType === "SPLIT_EQUALLY"
+    ) {
+      res.status(400).json({
+        message:
+          "Wydatek rozliczany między uczestnikami musi być widoczny dla uczestników",
+      });
+      return;
+    }
+
+    const payerId = paidById ?? userId;
+
+    const payerIsOrganizer = payerId === event.creatorId;
+
+    const payerParticipant = payerIsOrganizer
+      ? null
+      : await prisma.eventParticipant.findFirst({
+          where: {
+            eventId: Number(eventId),
+            userId: payerId,
+            status: "ACCEPTED",
+          },
+        });
+
+    if (!payerIsOrganizer && !payerParticipant) {
+      res.status(400).json({
+        message: "Osoba płacąca musi być organizatorem albo uczestnikiem wydarzenia",
       });
       return;
     }
@@ -91,6 +162,9 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
       data: {
         title,
         amount,
+        category: category?.trim() || null,
+        visibility: finalVisibility,
+        settlementType: finalSettlementType,
         eventId,
         paidById: payerId,
       },
@@ -138,24 +212,54 @@ router.post("/", authMiddleware, validateBody(createExpenseSchema), async (req, 
  */
 router.get("/event/:eventId", authMiddleware, async (req, res) => {
   const user = (req as any).user;
+  const userId = Number(user?.userId);
   const eventId = Number(req.params.eventId);
 
-  const event = await canAccessEvent(eventId, user.userId);
-
-  if (!event) {
-    res.status(404).json({
-      message: "Nie znaleziono wydarzenia",
+  if (!userId) {
+    res.status(401).json({
+      message: "Brak autoryzacji",
     });
     return;
   }
 
+  if (!eventId) {
+    res.status(400).json({
+      message: "Nieprawidłowe ID wydarzenia",
+    });
+    return;
+  }
+
+  const event = await canAccessEvent(eventId, userId);
+
+  if (!event) {
+    res.status(403).json({
+      message: "Nie masz dostępu do tego wydarzenia",
+    });
+    return;
+  }
+
+  const isOrganizer = event.creatorId === userId;
+
+  if (!isOrganizer && event.budgetMode === "PRIVATE") {
+    res.json([]);
+    return;
+  }
+
+  const expenseWhere =
+    isOrganizer || event.budgetMode === "SHARED"
+      ? {
+          eventId,
+        }
+      : {
+          eventId,
+          visibility: "PARTICIPANTS" as const,
+        };
+
   const expenses = await prisma.expense.findMany({
-    where: {
-      eventId,
-    },
+    where: expenseWhere,
     include: expenseInclude,
     orderBy: {
-      createdAt: "asc",
+      createdAt: "desc",
     },
   });
 
@@ -220,7 +324,51 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
       return;
     }
 
-    const participants = await prisma.eventParticipant.findMany({
+    const isOrganizer = event.creatorId === userId;
+
+    if (!isOrganizer && event.budgetMode === "PRIVATE") {
+      res.json({
+        budgetMode: event.budgetMode,
+        hidden: true,
+        totalExpenses: 0,
+        settledExpensesTotal: 0,
+        unassignedExpensesTotal: 0,
+        participantCount: 0,
+        perPersonShare: 0,
+        balances: [],
+        settlements: [],
+      });
+      return;
+    }
+
+    const expenseWhere =
+      isOrganizer || event.budgetMode === "SHARED"
+        ? {
+            eventId,
+          }
+        : {
+            eventId,
+            visibility: "PARTICIPANTS" as const,
+          };
+
+    const expenses = await prisma.expense.findMany({
+      where: expenseWhere,
+      include: expenseInclude,
+    });
+
+    const creator = await prisma.user.findUnique({
+      where: {
+        id: event.creatorId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+      },
+    });
+
+    const acceptedParticipants = await prisma.eventParticipant.findMany({
       where: {
         eventId,
         status: "ACCEPTED",
@@ -240,31 +388,41 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
       },
     });
 
-    const expenses = await prisma.expense.findMany({
-      where: {
-        eventId,
-      },
-      include: expenseInclude,
+    const settlementUsers = [
+      ...(creator ? [creator] : []),
+      ...acceptedParticipants
+        .map((participant) => participant.user)
+        .filter((participantUser) => participantUser.id !== event.creatorId),
+    ];
+
+    const splitExpenses = expenses.filter((expense) => {
+      return expense.settlementType === "SPLIT_EQUALLY";
+    });
+
+    const settledExpenses = splitExpenses.filter((expense) => {
+      return expense.paidById !== null;
+    });
+
+    const unassignedExpenses = splitExpenses.filter((expense) => {
+      return expense.paidById === null;
     });
 
     const totalExpenses = expenses.reduce((sum, expense) => {
       return sum + expense.amount;
     }, 0);
 
-    const paidExpenses = expenses.filter((expense) => expense.paidById !== null);
-
-    const settledExpensesTotal = paidExpenses.reduce((sum, expense) => {
+    const settledExpensesTotal = settledExpenses.reduce((sum, expense) => {
       return sum + expense.amount;
     }, 0);
 
-    const unassignedExpensesTotal = expenses
-      .filter((expense) => expense.paidById === null)
-      .reduce((sum, expense) => {
-        return sum + expense.amount;
-      }, 0);
+    const unassignedExpensesTotal = unassignedExpenses.reduce((sum, expense) => {
+      return sum + expense.amount;
+    }, 0);
 
-    if (participants.length === 0) {
+    if (settlementUsers.length === 0) {
       res.json({
+        budgetMode: event.budgetMode,
+        hidden: false,
         totalExpenses,
         settledExpensesTotal,
         unassignedExpensesTotal,
@@ -276,11 +434,11 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
       return;
     }
 
-    const perPersonShare = settledExpensesTotal / participants.length;
+    const perPersonShare = settledExpensesTotal / settlementUsers.length;
 
-    const balances = participants.map((participant) => {
-      const paid = paidExpenses
-        .filter((expense) => expense.paidById === participant.userId)
+    const balances = settlementUsers.map((settlementUser) => {
+      const paid = settledExpenses
+        .filter((expense) => expense.paidById === settlementUser.id)
         .reduce((sum, expense) => {
           return sum + expense.amount;
         }, 0);
@@ -288,7 +446,7 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
       const balance = paid - perPersonShare;
 
       return {
-        user: participant.user,
+        user: settlementUser,
         paid,
         share: perPersonShare,
         balance,
@@ -357,10 +515,12 @@ router.get("/event/:eventId/summary", authMiddleware, async (req, res) => {
     }
 
     res.json({
+      budgetMode: event.budgetMode,
+      hidden: false,
       totalExpenses,
       settledExpensesTotal,
       unassignedExpensesTotal,
-      participantCount: participants.length,
+      participantCount: settlementUsers.length,
       perPersonShare,
       balances,
       settlements,
@@ -516,6 +676,19 @@ router.patch(
         return;
       }
 
+      const event = await prisma.event.findUnique({
+        where: {
+          id: expense.eventId,
+        },
+      });
+
+      if (!event) {
+        res.status(404).json({
+          message: "Nie znaleziono wydarzenia",
+        });
+        return;
+      }
+
       const organizerEvent = await isEventOrganizer(expense.eventId, userId);
 
       if (!organizerEvent) {
@@ -525,20 +698,75 @@ router.patch(
         return;
       }
 
-      const { title, amount, paidById  } = req.body;
+      const {
+        title,
+        amount,
+        paidById,
+        category,
+        visibility,
+        settlementType,
+      } = req.body;
+
+      const parsedVisibility = parseExpenseVisibility(visibility);
+
+      if (parsedVisibility === null) {
+        res.status(400).json({
+          message: "Nieprawidłowa widoczność wydatku",
+        });
+        return;
+      }
+
+      const parsedSettlementType = parseExpenseSettlementType(settlementType);
+
+      if (parsedSettlementType === null) {
+        res.status(400).json({
+          message: "Nieprawidłowy typ rozliczenia wydatku",
+        });
+        return;
+      }
+
+      const defaults = getExpenseDefaultsForBudgetMode(event.budgetMode);
+
+      const finalVisibility =
+        event.budgetMode === "MIXED"
+          ? parsedVisibility
+          : defaults.visibility;
+
+      const finalSettlementType =
+        event.budgetMode === "MIXED"
+          ? parsedSettlementType
+          : defaults.settlementType;
+
+      const nextVisibility = finalVisibility ?? expense.visibility;
+      const nextSettlementType = finalSettlementType ?? expense.settlementType;
+
+      if (
+        nextVisibility === "ORGANIZER_ONLY" &&
+        nextSettlementType === "SPLIT_EQUALLY"
+      ) {
+        res.status(400).json({
+          message:
+            "Wydatek rozliczany między uczestnikami musi być widoczny dla uczestników",
+        });
+        return;
+      }
 
       if (paidById !== undefined && paidById !== null) {
-        const payerParticipant = await prisma.eventParticipant.findFirst({
-          where: {
-            eventId: expense.eventId,
-            userId: paidById,
-            status: "ACCEPTED",
-          },
-        });
+        const payerIsOrganizer = paidById === event.creatorId;
 
-        if (!payerParticipant) {
+        const payerParticipant = payerIsOrganizer
+          ? null
+          : await prisma.eventParticipant.findFirst({
+              where: {
+                eventId: expense.eventId,
+                userId: paidById,
+                status: "ACCEPTED",
+              },
+            });
+
+        if (!payerIsOrganizer && !payerParticipant) {
           res.status(400).json({
-            message: "Osoba płacąca musi być uczestnikiem wydarzenia",
+            message: "Osoba płacąca musi być organizatorem albo uczestnikiem wydarzenia",
           });
           return;
         }
@@ -550,8 +778,29 @@ router.patch(
         },
         data: {
           ...(title !== undefined ? { title } : {}),
-          ...(amount !== undefined ? { amount } : {}),
-          paidById,
+          ...(amount !== undefined ? { amount: Number(amount) } : {}),
+          ...(category !== undefined
+            ? {
+                category: category?.trim() || null,
+              }
+            : {}),
+
+          ...(finalVisibility
+            ? {
+                visibility: finalVisibility,
+              }
+            : {}),
+
+          ...(finalSettlementType
+            ? {
+                settlementType: finalSettlementType,
+              }
+            : {}),
+          ...(paidById !== undefined
+            ? {
+                paidById,
+              }
+            : {}),
         },
         include: expenseInclude,
       });
@@ -564,5 +813,66 @@ router.patch(
     }
   }
 );
+
+const isExpenseVisibility = (
+  value: unknown,
+): value is ExpenseVisibility => {
+  return Object.values(ExpenseVisibility).includes(
+    value as ExpenseVisibility,
+  );
+};
+
+const isExpenseSettlementType = (
+  value: unknown,
+): value is ExpenseSettlementType => {
+  return Object.values(ExpenseSettlementType).includes(
+    value as ExpenseSettlementType,
+  );
+};
+
+const parseExpenseVisibility = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (!isExpenseVisibility(value)) {
+    return null;
+  }
+
+  return value;
+};
+
+const parseExpenseSettlementType = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (!isExpenseSettlementType(value)) {
+    return null;
+  }
+
+  return value;
+};
+
+const getExpenseDefaultsForBudgetMode = (budgetMode: BudgetMode) => {
+  if (budgetMode === "PRIVATE") {
+    return {
+      visibility: "ORGANIZER_ONLY" as ExpenseVisibility,
+      settlementType: "NONE" as ExpenseSettlementType,
+    };
+  }
+
+  if (budgetMode === "SHARED") {
+    return {
+      visibility: "PARTICIPANTS" as ExpenseVisibility,
+      settlementType: "SPLIT_EQUALLY" as ExpenseSettlementType,
+    };
+  }
+
+  return {
+    visibility: "ORGANIZER_ONLY" as ExpenseVisibility,
+    settlementType: "NONE" as ExpenseSettlementType,
+  };
+};
 
 export default router;

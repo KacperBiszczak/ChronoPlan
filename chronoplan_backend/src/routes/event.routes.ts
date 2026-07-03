@@ -8,6 +8,7 @@ import {
 } from "../validators/event.validator";
 import { canAccessEvent } from "../lib/event-access";
 import { updateExistingGoogleCalendarEventForEvent, deleteExistingGoogleCalendarEventForEvent } from "../lib/google-calendar-event-sync";
+import { BudgetMode } from "@prisma/client";
 
 const router = Router();
 
@@ -45,11 +46,22 @@ router.post("/", authMiddleware, validateBody(createEventSchema), async (req, re
           title,
           description,
           date,
+          budgetMode,
           locationName,
           locationAddress,
           latitude,
           longitude,
         } = req.body;
+
+        const parsedBudgetMode = parseBudgetMode(budgetMode);
+
+        if (parsedBudgetMode === null) {
+          res.status(400).json({
+            message: "Nieprawidłowy tryb budżetu",
+          });
+          return;
+        }
+
         const user = (req as any).user;
 
         const event = await prisma.event.create({
@@ -57,6 +69,7 @@ router.post("/", authMiddleware, validateBody(createEventSchema), async (req, re
                 title,
                 description,
                 date: new Date(date),
+                budgetMode: parsedBudgetMode ?? "SHARED",
                 locationName,
                 locationAddress,
                 latitude,
@@ -250,11 +263,21 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
       title,
       description,
       date,
+      budgetMode,
       locationName,
       locationAddress,
       latitude,
       longitude,
     } = req.body;
+
+    const parsedBudgetMode = parseBudgetMode(budgetMode);
+
+    if (parsedBudgetMode === null) {
+      res.status(400).json({
+        message: "Nieprawidłowy tryb budżetu",
+      });
+      return;
+    }
 
     const existingEvent = await prisma.event.findFirst({
         where: {
@@ -276,6 +299,11 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
         title,
         description,
         date: new Date(date),
+        ...(parsedBudgetMode
+          ? {
+              budgetMode: parsedBudgetMode,
+            }
+          : {}),
         locationName,
         locationAddress,
         latitude,
@@ -425,5 +453,21 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     });
   }
 });
+
+const isBudgetMode = (value: unknown): value is BudgetMode => {
+  return Object.values(BudgetMode).includes(value as BudgetMode);
+};
+
+const parseBudgetMode = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (!isBudgetMode(value)) {
+    return null;
+  }
+
+  return value;
+};
 
 export default router;
