@@ -8,30 +8,19 @@ import '../../../core/utils/app_snack_bar.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 import '../../auth/services/auth_service.dart';
 
-enum ParticipantFilter {
-  all,
-  invited,
-  accepted,
-  declined,
-}
+enum ParticipantFilter { all, invited, accepted, declined }
 
 class ParticipantsScreenData {
   final List<ParticipantModel> participants;
   final bool canInvite;
 
-  ParticipantsScreenData({
-    required this.participants,
-    required this.canInvite,
-  });
+  ParticipantsScreenData({required this.participants, required this.canInvite});
 }
 
 class ParticipantsScreen extends StatefulWidget {
   final int eventId;
 
-  const ParticipantsScreen({
-    super.key,
-    required this.eventId,
-  });
+  const ParticipantsScreen({super.key, required this.eventId});
 
   @override
   State<ParticipantsScreen> createState() => _ParticipantsScreenState();
@@ -40,7 +29,6 @@ class ParticipantsScreen extends StatefulWidget {
 class _ParticipantsScreenState extends State<ParticipantsScreen> {
   final participantService = ParticipantService();
   final authService = AuthService();
-
 
   final searchController = TextEditingController();
 
@@ -62,12 +50,16 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     participantsFuture = loadParticipantsData();
   }
 
-  List<ParticipantModel> filterParticipants(List<ParticipantModel> participants) {
+  List<ParticipantModel> filterParticipants(
+    List<ParticipantModel> participants,
+  ) {
     final searchFilteredParticipants = participants.where((participant) {
       final name = participant.user?.name.toLowerCase() ?? '';
       final email = participant.user?.email.toLowerCase() ?? '';
       final role = AppEventRole.label(participant.role).toLowerCase();
-      final status = AppParticipantStatus.label(participant.status).toLowerCase();
+      final status = AppParticipantStatus.label(
+        participant.status,
+      ).toLowerCase();
 
       return name.contains(searchQuery) ||
           email.contains(searchQuery) ||
@@ -95,8 +87,9 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
   Future<ParticipantsScreenData> loadParticipantsData() async {
     final currentUser = await authService.getCurrentUser();
-    final participants =
-        await participantService.getParticipantsByEvent(widget.eventId);
+    final participants = await participantService.getParticipantsByEvent(
+      widget.eventId,
+    );
 
     final canInvite = participants.any(
       (participant) =>
@@ -133,9 +126,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
               if (email.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Podaj email użytkownika'),
-                  ),
+                  const SnackBar(content: Text('Podaj email użytkownika')),
                 );
                 return;
               }
@@ -215,10 +206,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Zaproszenie zostało wysłane',
-      );
+      AppSnackBar.success(context, 'Zaproszenie zostało wysłane');
     }
   }
 
@@ -242,10 +230,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Uczestnik został usunięty',
-      );
+      AppSnackBar.success(context, 'Uczestnik został usunięty');
     } catch (e) {
       if (!mounted) return;
 
@@ -275,9 +260,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                 icon: const Icon(Icons.clear),
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -349,28 +332,24 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
         leading: buildUserAvatar(user),
         title: Text(
           user?.name ?? 'Nieznany użytkownik',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           '${user?.email ?? 'Brak emaila'}\n${AppEventRole.label(participant.role)}',
         ),
         isThreeLine: true,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+        trailing: Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Chip(
               label: Text(
                 AppParticipantStatus.label(participant.status),
-                style: const TextStyle(
-                  color: Colors.white,
-                ),
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: AppParticipantStatus.color(participant.status),
             ),
             if (canDeleteParticipant) ...[
-              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'Usuń uczestnika',
@@ -392,11 +371,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 80),
-          const Icon(
-            Icons.error_outline,
-            size: 56,
-            color: Colors.red,
-          ),
+          const Icon(Icons.error_outline, size: 56, color: Colors.red),
           const SizedBox(height: 16),
           Text(
             'Nie udało się pobrać uczestników',
@@ -404,10 +379,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          Text(
-            error.toString(),
-            textAlign: TextAlign.center,
-          ),
+          Text(error.toString(), textAlign: TextAlign.center),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: refreshParticipants,
@@ -436,9 +408,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
       foregroundColor: Colors.white,
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -454,19 +424,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           padding: const EdgeInsets.all(24),
           children: const [
             SizedBox(height: 100),
-            Icon(
-              Icons.group,
-              size: 56,
-              color: Colors.blue,
-            ),
+            Icon(Icons.group, size: 56, color: Colors.blue),
             SizedBox(height: 16),
             Text(
               'Brak uczestników',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
             Text(
@@ -492,19 +455,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
           if (filteredParticipants.isEmpty) ...[
             const SizedBox(height: 80),
-            const Icon(
-              Icons.search_off,
-              size: 56,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.search_off, size: 56, color: Colors.blue),
             const SizedBox(height: 16),
             const Text(
               'Brak wyników',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -513,10 +469,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
             ),
           ] else ...[
             ...filteredParticipants.map(
-              (participant) => buildParticipantCard(
-                participant,
-                canManageParticipants,
-              ),
+              (participant) =>
+                  buildParticipantCard(participant, canManageParticipants),
             ),
           ],
         ],
@@ -532,9 +486,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
         final data = snapshot.data;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Uczestnicy'),
-          ),
+          appBar: AppBar(title: const Text('Uczestnicy')),
           floatingActionButton: data?.canInvite == true
               ? FloatingActionButton(
                   onPressed: showInviteDialog,
@@ -544,9 +496,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           body: Builder(
             builder: (context) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
 
               if (snapshot.hasError) {
@@ -555,7 +505,10 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
 
               final participants = data?.participants ?? [];
 
-              return buildParticipantsBody(participants, data?.canInvite == true);
+              return buildParticipantsBody(
+                participants,
+                data?.canInvite == true,
+              );
             },
           ),
         );

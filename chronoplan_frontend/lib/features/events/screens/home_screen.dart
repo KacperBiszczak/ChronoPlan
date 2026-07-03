@@ -10,12 +10,9 @@ import '../services/event_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import '../../../core/widgets/app_state_widgets.dart';
 
-enum EventFilter {
-  all,
-  upcoming,
-  past,
-}
+enum EventFilter { all, upcoming, past }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int invitationsCount = 0;
   int? currentUserId;
   UserModel? currentUser;
-  
+
   final searchController = TextEditingController();
 
   String searchQuery = '';
@@ -63,11 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
       eventsFuture = future;
     });
 
-    await Future.wait([
-      future,
-      loadCounters(),
-      loadCurrentUser(),
-    ]);
+    await Future.wait([future, loadCounters(), loadCurrentUser()]);
   }
 
   Future<void> logout() async {
@@ -87,34 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Wylogowano',
-      );
+      AppSnackBar.success(context, 'Wylogowano');
 
       context.go('/login');
     } catch (e) {
       if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się wylogować',
-      );
+      AppSnackBar.error(context, e, fallback: 'Nie udało się wylogować');
     }
   }
 
   Widget buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
+    return AppSectionTitle(title: title);
   }
 
   Widget buildSearchField() {
@@ -135,9 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.clear),
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -191,11 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: Colors.white,
-          ),
+          Icon(icon, size: 14, color: Colors.white),
           const SizedBox(width: 4),
           Text(
             label,
@@ -216,8 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
         currentUserId != null && event.creatorId == currentUserId;
 
     final roleColor = isOrganizer ? Colors.blue : Colors.green;
-    // final leadingColor = isPast ? Colors.grey : roleColor;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -237,9 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
               CircleAvatar(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                child: Icon(
-                  isPast ? Icons.event_busy : Icons.event,
-                ),
+                child: Icon(isPast ? Icons.event_busy : Icons.event),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -261,27 +228,35 @@ class _HomeScreenState extends State<HomeScreen> {
                           : 'Brak opisu',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isPast ? Colors.grey[600] : null,
-                      ),
+                      style: TextStyle(color: isPast ? Colors.grey[600] : null),
                     ),
                     const SizedBox(height: 6),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 16,
-                          color: isPast ? Colors.grey : Colors.blue,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 16,
+                              color: isPast ? Colors.grey : Colors.blue,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              AppFormatters.dateTime(event.date),
+                              style: TextStyle(
+                                color: isPast
+                                    ? Colors.grey[700]
+                                    : Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          AppFormatters.dateTime(event.date),
-                          style: TextStyle(
-                            color: isPast ? Colors.grey[700] : Colors.black87,
-                          ),
-                        ),
-                        if (event.locationName != null && event.locationName!.isNotEmpty) ...[
-                          const SizedBox(height: 6),
+                        if (event.locationName != null &&
+                            event.locationName!.isNotEmpty)
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -291,8 +266,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.grey,
                               ),
                               const SizedBox(width: 4),
-                              Flexible(
-                                fit: FlexFit.loose,
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 220,
+                                ),
                                 child: Text(
                                   event.locationName!,
                                   maxLines: 1,
@@ -305,7 +282,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -332,10 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
             ],
           ),
         ),
@@ -407,8 +380,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       setState(() {
-        myActiveTasksCount =
-            myTasks.where((task) => task.status != 'DONE').length;
+        myActiveTasksCount = myTasks
+            .where((task) => task.status != 'DONE')
+            .length;
         invitationsCount = invitations.length;
       });
     } catch (_) {
@@ -421,10 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget buildIconWithBadge({
-    required IconData icon,
-    required int count,
-  }) {
+  Widget buildIconWithBadge({required IconData icon, required int count}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -439,10 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.red,
                 shape: BoxShape.circle,
               ),
-              constraints: const BoxConstraints(
-                minWidth: 18,
-                minHeight: 18,
-              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               child: Text(
                 count > 99 ? '+99' : count.toString(),
                 textAlign: TextAlign.center,
@@ -456,6 +424,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> openCreateEvent() async {
+    final created = await context.push<bool>('/events/create');
+
+    if (!mounted) return;
+
+    if (created == true) {
+      await refreshEvents();
+    }
   }
 
   @override
@@ -473,7 +451,6 @@ class _HomeScreenState extends State<HomeScreen> {
               await refreshEvents();
             },
             icon: buildIconWithBadge(
-              
               icon: Icons.assignment_outlined,
               count: myActiveTasksCount,
             ),
@@ -494,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Moje zaproszenia',
           ),
           buildProfileButton(),
-          
+
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Wyloguj',
@@ -503,15 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await context.push<bool>('/events/create');
-
-          if (!mounted) return;
-
-          if (created == true) {
-            await refreshEvents();
-          }
-        },
+        onPressed: openCreateEvent,
         child: const Icon(Icons.add),
       ),
       body: RefreshIndicator(
@@ -520,9 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
           future: eventsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const AppLoadingState();
             }
 
             if (snapshot.hasError) {
@@ -566,19 +533,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(24),
                 children: const [
                   SizedBox(height: 100),
-                  Icon(
-                    Icons.event,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
+                  Icon(Icons.event, size: 56, color: Colors.blue),
                   SizedBox(height: 16),
                   Text(
                     'Brak wydarzeń',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -595,7 +555,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final title = event.title.toLowerCase();
               final description = event.description?.toLowerCase() ?? '';
 
-              return title.contains(searchQuery) || description.contains(searchQuery);
+              return title.contains(searchQuery) ||
+                  description.contains(searchQuery);
             }).toList();
 
             final filteredEvents = searchFilteredEvents.where((event) {
@@ -629,19 +590,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 if (filteredEvents.isEmpty) ...[
                   const SizedBox(height: 80),
-                  const Icon(
-                    Icons.search_off,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
+                  const Icon(Icons.search_off, size: 56, color: Colors.blue),
                   const SizedBox(height: 16),
                   const Text(
                     'Brak wyników',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(

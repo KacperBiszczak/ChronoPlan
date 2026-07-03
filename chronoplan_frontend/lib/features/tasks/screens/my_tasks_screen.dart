@@ -7,12 +7,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/status_helpers.dart';
 import '../../../core/utils/app_snack_bar.dart';
 
-enum MyTaskFilter {
-  all,
-  todo,
-  inProgress,
-  done,
-}
+enum MyTaskFilter { all, todo, inProgress, done }
 
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
@@ -59,20 +54,20 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
 
     final statusFilteredTasks = switch (selectedFilter) {
       MyTaskFilter.all => searchFilteredTasks,
-      MyTaskFilter.todo => searchFilteredTasks
-          .where((task) => task.status == 'TODO')
-          .toList(),
-      MyTaskFilter.inProgress => searchFilteredTasks
-          .where((task) => task.status == 'IN_PROGRESS')
-          .toList(),
-      MyTaskFilter.done => searchFilteredTasks
-          .where((task) => task.status == 'DONE')
-          .toList(),
+      MyTaskFilter.todo =>
+        searchFilteredTasks.where((task) => task.status == 'TODO').toList(),
+      MyTaskFilter.inProgress =>
+        searchFilteredTasks
+            .where((task) => task.status == 'IN_PROGRESS')
+            .toList(),
+      MyTaskFilter.done =>
+        searchFilteredTasks.where((task) => task.status == 'DONE').toList(),
     };
 
     statusFilteredTasks.sort((a, b) {
-      final statusCompare =
-          getStatusPriority(a.status).compareTo(getStatusPriority(b.status));
+      final statusCompare = getStatusPriority(
+        a.status,
+      ).compareTo(getStatusPriority(b.status));
 
       if (statusCompare != 0) {
         return statusCompare;
@@ -115,27 +110,17 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
 
   Future<void> changeStatus(TaskModel task, String status) async {
     try {
-      await taskService.updateTaskStatus(
-        taskId: task.id,
-        status: status,
-      );
+      await taskService.updateTaskStatus(taskId: task.id, status: status);
 
       await refreshTasks();
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Status zadania został zmieniony',
-      );
+      AppSnackBar.success(context, 'Status zadania został zmieniony');
     } catch (e) {
       if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Błąd zmiany statusu zadania',
-      );
+      AppSnackBar.error(context, e, fallback: 'Błąd zmiany statusu zadania');
     }
   }
 
@@ -157,9 +142,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                 icon: const Icon(Icons.clear),
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -229,9 +212,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
         ),
         title: Text(
           task.title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           '${task.description?.isNotEmpty == true ? task.description! : 'Brak opisu'}\n'
@@ -239,27 +220,31 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
           'Data: ${event != null ? AppFormatters.dateTime(event.date) : '-'}',
         ),
         isThreeLine: true,
-        trailing: DropdownButton<String>(
-          value: task.status,
-          items: [
-            DropdownMenuItem(
-              value: 'TODO',
-              child: Text(AppTaskStatus.label('TODO')),
-            ),
-            DropdownMenuItem(
-              value: 'IN_PROGRESS',
-              child: Text(AppTaskStatus.label('IN_PROGRESS')),
-            ),
-            DropdownMenuItem(
-              value: 'DONE',
-              child: Text(AppTaskStatus.label('DONE')),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null || value == task.status) return;
+        trailing: SizedBox(
+          width: 132,
+          child: DropdownButton<String>(
+            value: task.status,
+            isExpanded: true,
+            items: [
+              DropdownMenuItem(
+                value: 'TODO',
+                child: Text(AppTaskStatus.label('TODO')),
+              ),
+              DropdownMenuItem(
+                value: 'IN_PROGRESS',
+                child: Text(AppTaskStatus.label('IN_PROGRESS')),
+              ),
+              DropdownMenuItem(
+                value: 'DONE',
+                child: Text(AppTaskStatus.label('DONE')),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null || value == task.status) return;
 
-            changeStatus(task, value);
-          },
+              changeStatus(task, value);
+            },
+          ),
         ),
         onTap: event == null
             ? null
@@ -273,18 +258,14 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Moje zadania'),
-      ),
+      appBar: AppBar(title: const Text('Moje zadania')),
       body: RefreshIndicator(
         onRefresh: refreshTasks,
         child: FutureBuilder<List<TaskModel>>(
           future: tasksFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
@@ -292,11 +273,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(
-                    Icons.error_outline,
-                    size: 56,
-                    color: Colors.red,
-                  ),
+                  const Icon(Icons.error_outline, size: 56, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
                     'Nie udało się pobrać Twoich zadań',
@@ -304,10 +281,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: refreshTasks,
@@ -324,19 +298,12 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                 padding: const EdgeInsets.all(24),
                 children: const [
                   SizedBox(height: 100),
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
+                  Icon(Icons.assignment_outlined, size: 56, color: Colors.blue),
                   SizedBox(height: 16),
                   Text(
                     'Brak przypisanych zadań',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -368,10 +335,7 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                   const Text(
                     'Brak wyników',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(

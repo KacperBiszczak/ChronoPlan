@@ -9,10 +9,16 @@ class AppConfirmDialog {
     String cancelText = 'Anuluj',
     bool isDanger = false,
   }) async {
+    final colorScheme = Theme.of(context).colorScheme;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          icon: Icon(
+            isDanger ? Icons.warning_amber_rounded : Icons.help_outline,
+            color: isDanger ? colorScheme.error : colorScheme.primary,
+          ),
           title: Text(title),
           content: Text(message),
           actions: [
@@ -24,9 +30,7 @@ class AppConfirmDialog {
             ),
             FilledButton(
               style: isDanger
-                  ? FilledButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    )
+                  ? FilledButton.styleFrom(backgroundColor: colorScheme.error)
                   : null,
               onPressed: () {
                 Navigator.of(dialogContext).pop(true);

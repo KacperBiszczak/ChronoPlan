@@ -10,20 +10,12 @@ import '../../../core/utils/status_helpers.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 
-enum TaskFilter {
-  all,
-  todo,
-  inProgress,
-  done,
-}
+enum TaskFilter { all, todo, inProgress, done }
 
 class TasksScreen extends StatefulWidget {
   final int eventId;
 
-  const TasksScreen({
-    super.key,
-    required this.eventId,
-  });
+  const TasksScreen({super.key, required this.eventId});
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
@@ -108,8 +100,9 @@ class _TasksScreenState extends State<TasksScreen> {
     bool isLoading = false;
     int? selectedAssigneeId = task.assigneeId;
 
-    final participantsFuture =
-        participantService.getParticipantsByEvent(widget.eventId);
+    final participantsFuture = participantService.getParticipantsByEvent(
+      widget.eventId,
+    );
 
     final updated = await showDialog<bool>(
       context: context,
@@ -121,10 +114,7 @@ class _TasksScreenState extends State<TasksScreen> {
               final description = descriptionController.text.trim();
 
               if (title.isEmpty) {
-                AppSnackBar.info(
-                dialogContext,
-                  'Podaj tytuł zadania',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj tytuł zadania');
                 return;
               }
 
@@ -185,7 +175,8 @@ class _TasksScreenState extends State<TasksScreen> {
                     FutureBuilder<List<ParticipantModel>>(
                       future: participantsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const LinearProgressIndicator();
                         }
 
@@ -273,10 +264,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Zadanie zostało zaktualizowane',
-      );
+      AppSnackBar.success(context, 'Zadanie zostało zaktualizowane');
     }
   }
 
@@ -298,9 +286,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 icon: const Icon(Icons.clear),
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -375,30 +361,20 @@ class _TasksScreenState extends State<TasksScreen> {
       foregroundColor: Colors.white,
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }
 
   Future<void> changeStatus(TaskModel task, String status) async {
     try {
-      await taskService.updateTaskStatus(
-        taskId: task.id,
-        status: status,
-      );
+      await taskService.updateTaskStatus(taskId: task.id, status: status);
 
       await refreshTasks();
     } catch (e) {
       if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się zapisać zadania',
-      );
+      AppSnackBar.error(context, e, fallback: 'Nie udało się zapisać zadania');
     }
   }
 
@@ -421,18 +397,11 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Zadanie zostało usunięte',
-      );
+      AppSnackBar.success(context, 'Zadanie zostało usunięte');
     } catch (e) {
       if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się usunąć zadania',
-      );
+      AppSnackBar.error(context, e, fallback: 'Nie udało się usunąć zadania');
     }
   }
 
@@ -443,8 +412,9 @@ class _TasksScreenState extends State<TasksScreen> {
     bool isLoading = false;
     int? selectedAssigneeId;
 
-    final participantsFuture =
-        participantService.getParticipantsByEvent(widget.eventId);
+    final participantsFuture = participantService.getParticipantsByEvent(
+      widget.eventId,
+    );
 
     final created = await showDialog<bool>(
       context: context,
@@ -456,10 +426,7 @@ class _TasksScreenState extends State<TasksScreen> {
               final description = descriptionController.text.trim();
 
               if (title.isEmpty) {
-                AppSnackBar.info(
-                  dialogContext,
-                  'Podaj tytuł zadania',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj tytuł zadania');
                 return;
               }
 
@@ -520,7 +487,8 @@ class _TasksScreenState extends State<TasksScreen> {
                     FutureBuilder<List<ParticipantModel>>(
                       future: participantsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const LinearProgressIndicator();
                         }
 
@@ -532,9 +500,11 @@ class _TasksScreenState extends State<TasksScreen> {
                         }
 
                         final participants = (snapshot.data ?? [])
-                            .where((participant) =>
-                                participant.status == 'ACCEPTED' &&
-                                participant.user != null)
+                            .where(
+                              (participant) =>
+                                  participant.status == 'ACCEPTED' &&
+                                  participant.user != null,
+                            )
                             .toList();
 
                         return DropdownButtonFormField<int?>(
@@ -606,10 +576,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Zadanie zostało dodane',
-      );
+      AppSnackBar.success(context, 'Zadanie zostało dodane');
     }
   }
 
@@ -643,54 +610,55 @@ class _TasksScreenState extends State<TasksScreen> {
                   ],
                   const SizedBox(height: 4),
                   if (task.assignee != null)
-                  Row(
-                    children: [
-                      buildAssigneeAvatar(task.assignee),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Odpowiedzialny: ${task.assignee!.name}',
-                          style: TextStyle(
-                            color: Colors.grey[700],
-                            fontSize: 13,
+                    Row(
+                      children: [
+                        buildAssigneeAvatar(task.assignee),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Odpowiedzialny: ${task.assignee!.name}',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  )
-                else
-                  Text(
-                    'Nie przypisano osoby',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 13,
+                      ],
+                    )
+                  else
+                    Text(
+                      'Nie przypisano osoby',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
                     ),
-                  ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            DropdownButton<String>(
-              value: task.status,
-              items: [
-                DropdownMenuItem(
-                  value: 'TODO',
-                  child: Text(AppTaskStatus.label('TODO')),
-                ),
-                DropdownMenuItem(
-                  value: 'IN_PROGRESS',
-                  child: Text(AppTaskStatus.label('IN_PROGRESS')),
-                ),
-                DropdownMenuItem(
-                  value: 'DONE',
-                  child: Text(AppTaskStatus.label('DONE')),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null || value == task.status) return;
+            SizedBox(
+              width: 132,
+              child: DropdownButton<String>(
+                value: task.status,
+                isExpanded: true,
+                items: [
+                  DropdownMenuItem(
+                    value: 'TODO',
+                    child: Text(AppTaskStatus.label('TODO')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'IN_PROGRESS',
+                    child: Text(AppTaskStatus.label('IN_PROGRESS')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'DONE',
+                    child: Text(AppTaskStatus.label('DONE')),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value == null || value == task.status) return;
 
-                changeStatus(task, value);
-              },
+                  changeStatus(task, value);
+                },
+              ),
             ),
             if (canManageTasks)
               IconButton(
@@ -737,9 +705,7 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Zadania'),
-      ),
+      appBar: AppBar(title: const Text('Zadania')),
       floatingActionButton: canManageTasks
           ? FloatingActionButton(
               onPressed: showCreateTaskDialog,
@@ -760,11 +726,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(
-                    Icons.error_outline,
-                    size: 56,
-                    color: Colors.red,
-                  ),
+                  const Icon(Icons.error_outline, size: 56, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
                     'Nie udało się pobrać zadań',
@@ -772,10 +734,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: refreshTasks,
@@ -792,19 +751,12 @@ class _TasksScreenState extends State<TasksScreen> {
                 padding: const EdgeInsets.all(24),
                 children: const [
                   SizedBox(height: 100),
-                  Icon(
-                    Icons.checklist,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
+                  Icon(Icons.checklist, size: 56, color: Colors.blue),
                   SizedBox(height: 16),
                   Text(
                     'Brak zadań',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -827,19 +779,12 @@ class _TasksScreenState extends State<TasksScreen> {
 
                 if (filteredTasks.isEmpty) ...[
                   const SizedBox(height: 80),
-                  const Icon(
-                    Icons.search_off,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
+                  const Icon(Icons.search_off, size: 56, color: Colors.blue),
                   const SizedBox(height: 16),
                   const Text(
                     'Brak wyników',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(

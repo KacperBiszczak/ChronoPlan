@@ -20,10 +20,7 @@ import '../../../core/services/google_calendar_service.dart';
 class EventDetailsScreen extends StatefulWidget {
   final int eventId;
 
-  const EventDetailsScreen({
-    super.key,
-    required this.eventId,
-  });
+  const EventDetailsScreen({super.key, required this.eventId});
 
   @override
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
@@ -36,7 +33,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   final expenseService = ExpenseService();
   final participantService = ParticipantService();
   final googleCalendarService = GoogleCalendarService();
-  
+
   late Future<GoogleCalendarEventStatus> googleCalendarStatusFuture;
   late Future<bool> reminderStatusFuture;
 
@@ -53,11 +50,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
     eventFuture = loadEvent();
     summaryFuture = loadSummary();
-    
+
     loadCurrentUser();
 
-    googleCalendarStatusFuture = googleCalendarService.getEventStatus(widget.eventId);
-    reminderStatusFuture = NotificationService.isEventReminderScheduled(widget.eventId);
+    googleCalendarStatusFuture = googleCalendarService.getEventStatus(
+      widget.eventId,
+    );
+    reminderStatusFuture = NotificationService.isEventReminderScheduled(
+      widget.eventId,
+    );
   }
 
   @override
@@ -82,14 +83,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   Future<EventSummaryData> loadSummary() async {
     final tasks = await taskService.getTasksByEvent(widget.eventId);
-    final totalExpenses = await expenseService.getExpenseSummary(widget.eventId);
-    final participants =
-        await participantService.getParticipantsByEvent(widget.eventId);
+    final totalExpenses = await expenseService.getExpenseSummary(
+      widget.eventId,
+    );
+    final participants = await participantService.getParticipantsByEvent(
+      widget.eventId,
+    );
 
     final todoTasks = tasks.where((task) => task.status == 'TODO').length;
 
-    final inProgressTasks =
-        tasks.where((task) => task.status == 'IN_PROGRESS').length;
+    final inProgressTasks = tasks
+        .where((task) => task.status == 'IN_PROGRESS')
+        .length;
 
     final doneTasks = tasks.where((task) => task.status == 'DONE').length;
 
@@ -142,10 +147,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Opuszczono wydarzenie',
-      );
+      AppSnackBar.success(context, 'Opuszczono wydarzenie');
 
       context.go('/home');
     } catch (e) {
@@ -175,16 +177,13 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       await eventService.deleteEvent(event.id);
 
-        try {
-          await NotificationService.cancelEventReminder(event.id);
-        } catch (_) {}
+      try {
+        await NotificationService.cancelEventReminder(event.id);
+      } catch (_) {}
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Wydarzenie zostało usunięte',
-      );
+      AppSnackBar.success(context, 'Wydarzenie zostało usunięte');
 
       context.go('/home');
     } catch (e) {
@@ -226,10 +225,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
 
     if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -238,10 +234,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       return const SizedBox.shrink();
     }
 
-    final point = LatLng(
-      event.latitude!,
-      event.longitude!,
-    );
+    final point = LatLng(event.latitude!, event.longitude!);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -251,10 +244,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           SizedBox(
             height: 220,
             child: FlutterMap(
-              options: MapOptions(
-                initialCenter: point,
-                initialZoom: 15,
-              ),
+              options: MapOptions(initialCenter: point, initialZoom: 15),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -297,7 +287,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         event.locationName != null && event.locationName!.trim().isNotEmpty;
 
     final hasLocationAddress =
-        event.locationAddress != null && event.locationAddress!.trim().isNotEmpty;
+        event.locationAddress != null &&
+        event.locationAddress!.trim().isNotEmpty;
 
     final hasCoordinates = event.latitude != null && event.longitude != null;
 
@@ -313,17 +304,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  color: Colors.blue.shade700,
-                ),
+                Icon(Icons.location_on_outlined, color: Colors.blue.shade700),
                 const SizedBox(width: 8),
                 const Text(
                   'Lokalizacja',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -332,9 +317,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             if (hasLocationName) ...[
               Text(
                 event.locationName!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
             ],
@@ -347,10 +330,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             if (hasCoordinates)
               Text(
                 'Współrzędne: ${event.latitude!.toStringAsFixed(6)}, ${event.longitude!.toStringAsFixed(6)}',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
               ),
           ],
         ),
@@ -367,8 +347,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         final tasksText = summary == null
             ? 'Ładowanie...'
             : '${summary.todoTasks} do zrobienia, '
-                '${summary.inProgressTasks} w trakcie, '
-                '${summary.doneTasks} zrobione';
+                  '${summary.inProgressTasks} w trakcie, '
+                  '${summary.doneTasks} zrobione';
 
         final expensesText = summary == null
             ? 'Ładowanie...'
@@ -383,10 +363,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           children: [
             const Text(
               'Moduły wydarzenia',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Card(
@@ -426,7 +403,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 subtitle: Text(participantsText),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
-                  await context.push('/events/${widget.eventId}/date-votes');
+                  await context.push('/events/${widget.eventId}/participants');
 
                   if (!mounted) return;
 
@@ -438,7 +415,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.how_to_vote_outlined, color: Colors.blue),
+                leading: const Icon(
+                  Icons.how_to_vote_outlined,
+                  color: Colors.blue,
+                ),
                 title: const Text('Głosowanie nad terminem'),
                 subtitle: const Text('Propozycje terminów i głosy uczestników'),
                 trailing: const Icon(Icons.chevron_right),
@@ -453,7 +433,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.chat_bubble_outline, color: Colors.blue),
+                leading: const Icon(
+                  Icons.chat_bubble_outline,
+                  color: Colors.blue,
+                ),
                 title: const Text('Czat'),
                 subtitle: const Text('Wiadomości uczestników wydarzenia'),
                 trailing: const Icon(Icons.chevron_right),
@@ -520,9 +503,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             child: Builder(
               builder: (context) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
@@ -556,9 +537,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 }
 
                 if (event == null) {
-                  return const Center(
-                    child: Text('Brak danych wydarzenia'),
-                  );
+                  return const Center(child: Text('Brak danych wydarzenia'));
                 }
 
                 return ListView(
@@ -630,10 +609,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Przypomnienie zostało ustawione',
-      );
+      AppSnackBar.success(context, 'Przypomnienie zostało ustawione');
 
       await refreshReminderStatus();
     } catch (e) {
@@ -663,10 +639,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Przypomnienie zostało anulowane',
-      );
+      AppSnackBar.success(context, 'Przypomnienie zostało anulowane');
 
       await refreshReminderStatus();
     } catch (e) {
@@ -724,16 +697,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   isLoading
                       ? 'Sprawdzanie przypomnienia...'
                       : isScheduled
-                          ? 'Przypomnienie jest ustawione godzinę przed wydarzeniem.'
-                          : canSchedule
-                              ? 'Możesz ustawić lokalne przypomnienie godzinę przed wydarzeniem.'
-                              : 'Nie można ustawić przypomnienia, bo wydarzenie zaczyna się za mniej niż godzinę lub już minęło.',
+                      ? 'Przypomnienie jest ustawione godzinę przed wydarzeniem.'
+                      : canSchedule
+                      ? 'Możesz ustawić lokalne przypomnienie godzinę przed wydarzeniem.'
+                      : 'Nie można ustawić przypomnienia, bo wydarzenie zaczyna się za mniej niż godzinę lub już minęło.',
                   style: TextStyle(
                     color: isScheduled
                         ? Colors.green.shade700
                         : canSchedule
-                            ? Colors.blue.shade700
-                            : Colors.orange.shade800,
+                        ? Colors.blue.shade700
+                        : Colors.orange.shade800,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -824,15 +797,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   isLoading
                       ? 'Sprawdzanie połączenia...'
                       : isConnected
-                          ? isSynced
-                              ? 'To wydarzenie jest dodane do Twojego Google Calendar.'
-                              : 'Możesz dodać to wydarzenie do swojego Google Calendar.'
-                          : 'Najpierw połącz Google Calendar w profilu.',
+                      ? isSynced
+                            ? 'To wydarzenie jest dodane do Twojego Google Calendar.'
+                            : 'Możesz dodać to wydarzenie do swojego Google Calendar.'
+                      : 'Najpierw połącz Google Calendar w profilu.',
                   style: TextStyle(
                     color: isConnected
                         ? isSynced
-                            ? Colors.green.shade700
-                            : Colors.blue.shade700
+                              ? Colors.green.shade700
+                              : Colors.blue.shade700
                         : Colors.orange.shade800,
                     fontWeight: FontWeight.w600,
                   ),
@@ -842,10 +815,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Ostatnia synchronizacja: ${AppFormatters.dateTime(syncedAt)}',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
                   ),
                 ],
 
@@ -882,7 +852,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             },
                       icon: const Icon(Icons.sync),
                       label: Text(
-                        isSynced ? 'Aktualizuj w Google Calendar' : 'Dodaj do Google Calendar',
+                        isSynced
+                            ? 'Aktualizuj w Google Calendar'
+                            : 'Dodaj do Google Calendar',
                       ),
                     ),
                   ),
@@ -943,10 +915,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       if (!status.connected) {
         if (!mounted) return;
 
-        AppSnackBar.info(
-          context,
-          'Najpierw połącz Google Calendar w profilu.',
-        );
+        AppSnackBar.info(context, 'Najpierw połącz Google Calendar w profilu.');
 
         await openProfileForGoogleCalendar();
         return;
@@ -956,10 +925,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Google Calendar został zaktualizowany',
-      );
+      AppSnackBar.success(context, 'Google Calendar został zaktualizowany');
 
       await refreshEvent();
       await refreshGoogleCalendarStatus();
@@ -1009,7 +975,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       await refreshEvent();
       await refreshGoogleCalendarStatus();
-      
     } catch (e) {
       if (!mounted) return;
 
@@ -1046,7 +1011,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
       await refreshEvent();
       await refreshGoogleCalendarStatus();
-
     } catch (e) {
       if (!mounted) return;
 
@@ -1058,9 +1022,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-  Future<void> runGoogleCalendarAction(
-    Future<void> Function() action,
-  ) async {
+  Future<void> runGoogleCalendarAction(Future<void> Function() action) async {
     if (isGoogleCalendarActionLoading) return;
 
     setState(() {
@@ -1070,11 +1032,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       await action();
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isGoogleCalendarActionLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isGoogleCalendarActionLoading = false;
+        });
+      }
     }
   }
 
@@ -1082,10 +1044,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       final wasRescheduled =
           await NotificationService.rescheduleEventReminderIfNeeded(
-        eventId: event.id,
-        eventTitle: event.title,
-        eventDate: event.date,
-      );
+            eventId: event.id,
+            eventTitle: event.title,
+            eventDate: event.date,
+          );
 
       if (!mounted || !wasRescheduled) return;
 

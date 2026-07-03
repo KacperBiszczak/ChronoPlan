@@ -298,7 +298,11 @@ router.put("/:id", authMiddleware, validateBody(updateEventSchema), async (req, 
       data: {
         title,
         description,
-        date: new Date(date),
+        ...(date !== undefined
+          ? {
+              date: new Date(date),
+            }
+          : {}),
         ...(parsedBudgetMode
           ? {
               budgetMode: parsedBudgetMode,

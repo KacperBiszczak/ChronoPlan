@@ -4,26 +4,20 @@ import '../../auth/services/auth_service.dart';
 import '../../events/services/event_service.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/app_confirm_dialog.dart';
 import '../../../core/utils/app_snack_bar.dart';
+import '../../../core/widgets/app_state_widgets.dart';
 import '../../participants/models/participant_model.dart';
 import '../../participants/services/participant_service.dart';
 
-enum ExpenseSort {
-  defaultOrder,
-  amountAsc,
-  amountDesc,
-  titleAsc,
-}
+enum ExpenseSort { defaultOrder, amountAsc, amountDesc, titleAsc }
 
 class ExpensesScreen extends StatefulWidget {
   final int eventId;
 
-  const ExpensesScreen({
-    super.key,
-    required this.eventId,
-  });
+  const ExpensesScreen({super.key, required this.eventId});
 
   @override
   State<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -73,10 +67,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
 
     await loadPermissions();
-    await Future.wait([
-      expenses,
-      summary,
-    ]);
+    await Future.wait([expenses, summary]);
   }
 
   List<ExpenseModel> filterAndSortExpenses(List<ExpenseModel> expenses) {
@@ -106,14 +97,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Color getBalanceColor(double balance) {
     if (balance > 0.01) {
-      return Colors.green;
+      return AppTheme.success;
     }
 
     if (balance < -0.01) {
-      return Colors.red;
+      return AppTheme.danger;
     }
 
-    return Colors.grey;
+    return AppTheme.mutedText;
   }
 
   String formatBalance(double balance) {
@@ -132,7 +123,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final participants = await loadAcceptedParticipants();
 
     if (!mounted) return;
-    
+
     final titleController = TextEditingController();
     final amountController = TextEditingController();
     final categoryController = TextEditingController();
@@ -150,22 +141,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           builder: (dialogContext, setDialogState) {
             Future<void> createExpense() async {
               final title = titleController.text.trim();
-              final amountText = amountController.text.trim().replaceAll(',', '.');
+              final amountText = amountController.text.trim().replaceAll(
+                ',',
+                '.',
+              );
               final amount = double.tryParse(amountText);
 
               if (title.isEmpty) {
-                AppSnackBar.info(
-                  dialogContext,
-                  'Podaj nazwę wydatku',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj nazwę wydatku');
                 return;
               }
 
               if (amount == null || amount <= 0) {
-                AppSnackBar.info(
-                  dialogContext,
-                  'Podaj poprawną kwotę',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj poprawną kwotę');
                 return;
               }
 
@@ -302,10 +290,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           : (value) {
                               if (value == null) return;
 
-                              if (
-                                selectedVisibility == 'ORGANIZER_ONLY' &&
-                                value == 'SPLIT_EQUALLY'
-                              ) {
+                              if (selectedVisibility == 'ORGANIZER_ONLY' &&
+                                  value == 'SPLIT_EQUALLY') {
                                 return;
                               }
 
@@ -328,16 +314,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           value: null,
                           child: Text('Ja / aktualny użytkownik'),
                         ),
-                        ...participants.map(
-                          (participant) {
-                            final user = participant.user;
+                        ...participants.map((participant) {
+                          final user = participant.user;
 
-                            return DropdownMenuItem<int?>(
-                              value: participant.userId,
-                              child: Text(user?.name ?? user?.email ?? 'Uczestnik'),
-                            );
-                          },
-                        ),
+                          return DropdownMenuItem<int?>(
+                            value: participant.userId,
+                            child: Text(
+                              user?.name ?? user?.email ?? 'Uczestnik',
+                            ),
+                          );
+                        }),
                       ],
                       onChanged: isLoading
                           ? null
@@ -387,10 +373,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Wydatek został dodany',
-      );
+      AppSnackBar.success(context, 'Wydatek został dodany');
     }
   }
 
@@ -420,22 +403,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           builder: (dialogContext, setDialogState) {
             Future<void> updateExpense() async {
               final title = titleController.text.trim();
-              final amountText = amountController.text.trim().replaceAll(',', '.');
+              final amountText = amountController.text.trim().replaceAll(
+                ',',
+                '.',
+              );
               final amount = double.tryParse(amountText);
 
               if (title.isEmpty) {
-                AppSnackBar.info(
-                  dialogContext,
-                  'Podaj nazwę wydatku',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj nazwę wydatku');
                 return;
               }
 
               if (amount == null || amount <= 0) {
-                AppSnackBar.info(
-                  dialogContext,
-                  'Podaj poprawną kwotę',
-                );
+                AppSnackBar.info(dialogContext, 'Podaj poprawną kwotę');
                 return;
               }
 
@@ -573,10 +553,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           : (value) {
                               if (value == null) return;
 
-                              if (
-                                selectedVisibility == 'ORGANIZER_ONLY' &&
-                                value == 'SPLIT_EQUALLY'
-                              ) {
+                              if (selectedVisibility == 'ORGANIZER_ONLY' &&
+                                  value == 'SPLIT_EQUALLY') {
                                 return;
                               }
 
@@ -599,16 +577,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           value: null,
                           child: Text('Brak przypisanej osoby'),
                         ),
-                        ...participants.map(
-                          (participant) {
-                            final user = participant.user;
+                        ...participants.map((participant) {
+                          final user = participant.user;
 
-                            return DropdownMenuItem<int?>(
-                              value: participant.userId,
-                              child: Text(user?.name ?? user?.email ?? 'Uczestnik'),
-                            );
-                          },
-                        ),
+                          return DropdownMenuItem<int?>(
+                            value: participant.userId,
+                            child: Text(
+                              user?.name ?? user?.email ?? 'Uczestnik',
+                            ),
+                          );
+                        }),
                       ],
                       onChanged: isLoading
                           ? null
@@ -658,10 +636,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Wydatek został zaktualizowany',
-      );
+      AppSnackBar.success(context, 'Wydatek został zaktualizowany');
     }
   }
 
@@ -683,9 +658,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 icon: const Icon(Icons.clear),
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -702,9 +675,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       initialValue: selectedSort,
       decoration: InputDecoration(
         labelText: 'Sortowanie',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -721,10 +692,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           value: ExpenseSort.amountDesc,
           child: Text('Kwota malejąco'),
         ),
-        DropdownMenuItem(
-          value: ExpenseSort.titleAsc,
-          child: Text('Nazwa A-Z'),
-        ),
+        DropdownMenuItem(value: ExpenseSort.titleAsc, child: Text('Nazwa A-Z')),
       ],
       onChanged: (value) {
         if (value == null) return;
@@ -753,10 +721,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       foregroundColor: Colors.white,
       child: Text(
         user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -767,10 +732,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         radius: 14,
         backgroundColor: Colors.grey.shade300,
         foregroundColor: Colors.grey.shade700,
-        child: const Icon(
-          Icons.person_off_outlined,
-          size: 16,
-        ),
+        child: const Icon(Icons.person_off_outlined, size: 16),
       );
     }
 
@@ -790,10 +752,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       foregroundColor: Colors.white,
       child: Text(
         user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -804,13 +763,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       builder: (context, snapshot) {
         final summary = snapshot.data;
 
-        if (snapshot.connectionState == ConnectionState.waiting && summary == null) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            summary == null) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: Center(child: CircularProgressIndicator()),
             ),
           );
         }
@@ -821,9 +779,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Nie udało się pobrać podsumowania budżetu',
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                ),
+                style: TextStyle(color: Colors.red.shade700),
               ),
             ),
           );
@@ -833,23 +789,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Card(
-              color: Colors.blue,
+              color: AppTheme.primary,
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
                     const CircleAvatar(
                       backgroundColor: Colors.white,
-                      foregroundColor: Colors.blue,
+                      foregroundColor: AppTheme.primary,
                       child: Icon(Icons.payments),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
                         'Suma wydatków',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                            ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(color: Colors.white),
                       ),
                     ),
                     Text(
@@ -881,9 +837,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      'Liczba uczestników: ${summary.participantCount}',
-                    ),
+                    Text('Liczba uczestników: ${summary.participantCount}'),
                     const SizedBox(height: 6),
                     Text(
                       'Udział na osobę: ${AppFormatters.amount(summary.perPersonShare)}',
@@ -926,46 +880,44 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     if (summary.balances.isEmpty)
                       const Text('Brak sald do pokazania.')
                     else
-                      ...summary.balances.map(
-                        (balance) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                buildExpenseUserAvatar(balance.user),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    balance.user.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                      ...summary.balances.map((balance) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              buildExpenseUserAvatar(balance.user),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  balance.user.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      formatBalance(balance.balance),
-                                      style: TextStyle(
-                                        color: getBalanceColor(balance.balance),
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    formatBalance(balance.balance),
+                                    style: TextStyle(
+                                      color: getBalanceColor(balance.balance),
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    Text(
-                                      'zapłacił ${AppFormatters.amount(balance.paid)}',
-                                      style: TextStyle(
-                                        color: Colors.grey[700],
-                                        fontSize: 12,
-                                      ),
+                                  ),
+                                  Text(
+                                    'zapłacił ${AppFormatters.amount(balance.paid)}',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 12,
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),
@@ -989,37 +941,33 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     const SizedBox(height: 12),
 
                     if (summary.settlements.isEmpty)
-                      const Text(
-                        'Brak rozliczeń do wykonania.',
-                      )
+                      const Text('Brak rozliczeń do wykonania.')
                     else
-                      ...summary.settlements.map(
-                        (settlement) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                buildExpenseUserAvatar(settlement.from),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${settlement.from.name} → ${settlement.to.name}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  AppFormatters.amount(settlement.amount),
+                      ...summary.settlements.map((settlement) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              buildExpenseUserAvatar(settlement.from),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${settlement.from.name} → ${settlement.to.name}',
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                              ),
+                              Text(
+                                AppFormatters.amount(settlement.amount),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),
@@ -1035,100 +983,112 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: const CircleAvatar(
-          backgroundColor: Colors.blue,
+          backgroundColor: AppTheme.primary,
           foregroundColor: Colors.white,
           child: Icon(Icons.receipt_long),
         ),
-        title: Text(
-          expense.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                expense.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              AppFormatters.amount(expense.amount),
+              style: const TextStyle(
+                color: AppTheme.primaryDark,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
         subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(AppFormatters.amount(expense.amount)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(AppFormatters.amount(expense.amount)),
-
-              if (expense.category != null && expense.category!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Chip(
-                  avatar: const Icon(
-                    Icons.category_outlined,
-                    size: 16,
-                  ),
-                  label: Text(expense.category!),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-
-              const SizedBox(height: 6),
-
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (expense.category != null &&
+                    expense.category!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
                   Chip(
-                    avatar: Icon(
-                      expense.visibility == 'ORGANIZER_ONLY'
-                          ? Icons.lock_outline
-                          : Icons.group_outlined,
-                      size: 16,
-                    ),
-                    label: Text(getExpenseVisibilityLabel(expense.visibility)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  Chip(
-                    avatar: Icon(
-                      expense.settlementType == 'SPLIT_EQUALLY'
-                          ? Icons.call_split_outlined
-                          : Icons.money_off_outlined,
-                      size: 16,
-                    ),
-                    label: Text(getExpenseSettlementTypeLabel(expense.settlementType)),
+                    avatar: const Icon(Icons.category_outlined, size: 16),
+                    label: Text(expense.category!),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
-              ),
 
-              const SizedBox(height: 8),
-              Expanded(
-                child: Text(
-                  expense.paidBy != null
-                      ? 'Zapłacił: ${expense.paidBy!.name}'
-                      : 'Brak osoby płacącej',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: 13,
+                const SizedBox(height: 6),
+
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Chip(
+                      avatar: Icon(
+                        expense.visibility == 'ORGANIZER_ONLY'
+                            ? Icons.lock_outline
+                            : Icons.group_outlined,
+                        size: 16,
+                      ),
+                      label: Text(
+                        getExpenseVisibilityLabel(expense.visibility),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Chip(
+                      avatar: Icon(
+                        expense.settlementType == 'SPLIT_EQUALLY'
+                            ? Icons.call_split_outlined
+                            : Icons.money_off_outlined,
+                        size: 16,
+                      ),
+                      label: Text(
+                        getExpenseSettlementTypeLabel(expense.settlementType),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 220,
+                  child: Text(
+                    expense.paidBy != null
+                        ? 'Zapłacił: ${expense.paidBy!.name}'
+                        : 'Brak osoby płacącej',
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      trailing: canManageExpenses
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    showEditExpenseDialog(expense);
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edytuj',
-                ),
-                IconButton(
-                  onPressed: () => deleteExpense(expense),
-                  icon: const Icon(Icons.delete_outline),
-                  color: Colors.red,
-                  tooltip: 'Usuń',
-                ),
               ],
-            )
-          : null,
+            ),
+          ],
+        ),
+        trailing: canManageExpenses
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      showEditExpenseDialog(expense);
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    tooltip: 'Edytuj',
+                  ),
+                  IconButton(
+                    onPressed: () => deleteExpense(expense),
+                    icon: const Icon(Icons.delete_outline),
+                    color: AppTheme.danger,
+                    tooltip: 'Usuń',
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
@@ -1152,18 +1112,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Wydatek został usunięty',
-      );
+      AppSnackBar.success(context, 'Wydatek został usunięty');
     } catch (e) {
       if (!mounted) return;
 
-      AppSnackBar.error(
-        context,
-        e,
-        fallback: 'Nie udało się usunąć wydatku',
-      );
+      AppSnackBar.error(context, e, fallback: 'Nie udało się usunąć wydatku');
     }
   }
 
@@ -1199,23 +1152,20 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budżet'),
-      ),
+      appBar: AppBar(title: const Text('Budżet')),
       floatingActionButton: canManageExpenses
-        ? FloatingActionButton(
-        onPressed: showCreateExpenseDialog,
-        child: const Icon(Icons.add),
-      ): null,
+          ? FloatingActionButton(
+              onPressed: showCreateExpenseDialog,
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: refreshExpenses,
         child: FutureBuilder<ExpenseSummaryModel>(
           future: summaryFuture,
           builder: (context, summarySnapshot) {
             if (summarySnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const AppLoadingState();
             }
 
             if (summarySnapshot.hasError || summarySnapshot.data == null) {
@@ -1223,11 +1173,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(
-                    Icons.error_outline,
-                    size: 56,
-                    color: Colors.red,
-                  ),
+                  const Icon(Icons.error_outline, size: 56, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
                     'Nie udało się pobrać podsumowania budżetu',
@@ -1253,9 +1199,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             if (summary.hidden) {
               return ListView(
                 padding: const EdgeInsets.all(16),
-                children: [
-                  buildHiddenBudgetInfo(),
-                ],
+                children: [buildHiddenBudgetInfo()],
               );
             }
 
@@ -1263,9 +1207,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               future: expensesFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const AppLoadingState();
                 }
 
                 if (snapshot.hasError) {
@@ -1304,64 +1246,69 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    buildBudgetModeInfo(summary),
-                    const SizedBox(height: 12),
+                    AppConstrainedContent(
+                      maxWidth: 960,
+                      children: [
+                        buildBudgetModeInfo(summary),
+                        const SizedBox(height: 12),
 
-                    buildSummaryCard(),
-                    const SizedBox(height: 16),
+                        buildSummaryCard(),
+                        const SizedBox(height: 16),
 
-                    if (expenses.isNotEmpty) ...[
-                      buildSearchField(),
-                      const SizedBox(height: 16),
-                      buildSortSelector(),
-                      const SizedBox(height: 16),
-                    ],
+                        if (expenses.isNotEmpty) ...[
+                          buildSearchField(),
+                          const SizedBox(height: 16),
+                          buildSortSelector(),
+                          const SizedBox(height: 16),
+                        ],
 
-                    if (expenses.isEmpty) ...[
-                      const SizedBox(height: 80),
-                      const Icon(
-                        Icons.payments,
-                        size: 56,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Brak wydatków',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Dodaj pierwszy wydatek do tego wydarzenia.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else if (filteredExpenses.isEmpty) ...[
-                      const SizedBox(height: 80),
-                      const Icon(
-                        Icons.search_off,
-                        size: 56,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Brak wyników',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Nie znaleziono wydatków pasujących do wyszukiwania.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else ...[
-                      ...filteredExpenses.map(buildExpenseCard),
-                    ],
+                        if (expenses.isEmpty) ...[
+                          const SizedBox(height: 80),
+                          const Icon(
+                            Icons.payments,
+                            size: 56,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Brak wydatków',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Dodaj pierwszy wydatek do tego wydarzenia.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ] else if (filteredExpenses.isEmpty) ...[
+                          const SizedBox(height: 80),
+                          const Icon(
+                            Icons.search_off,
+                            size: 56,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Brak wyników',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Nie znaleziono wydatków pasujących do wyszukiwania.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ] else ...[
+                          ...filteredExpenses.map(buildExpenseCard),
+                        ],
+                      ],
+                    ),
                   ],
                 );
               },
@@ -1398,9 +1345,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   const SizedBox(height: 6),
                   Text(
                     getBudgetModeDescription(summary.budgetMode),
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -1418,10 +1363,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.lock_outline,
-              color: Colors.orange.shade800,
-            ),
+            Icon(Icons.lock_outline, color: Colors.orange.shade800),
             const SizedBox(width: 12),
             const Expanded(
               child: Column(
@@ -1429,10 +1371,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 children: [
                   Text(
                     'Budżet prywatny',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 6),
                   Text(

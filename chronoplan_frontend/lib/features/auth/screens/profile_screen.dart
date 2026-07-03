@@ -14,7 +14,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   final authService = AuthService();
 
   final nameController = TextEditingController();
@@ -36,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
-    
+
     WidgetsBinding.instance.addObserver(this);
 
     googleCalendarStatusFuture = googleCalendarService.getStatus();
@@ -92,18 +93,12 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     final email = emailController.text.trim();
 
     if (name.isEmpty) {
-      AppSnackBar.info(
-        context,
-        'Podaj nazwę użytkownika',
-      );
+      AppSnackBar.info(context, 'Podaj nazwę użytkownika');
       return;
     }
 
     if (email.isEmpty) {
-      AppSnackBar.info(
-        context,
-        'Podaj email',
-      );
+      AppSnackBar.info(context, 'Podaj email');
       return;
     }
 
@@ -126,10 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         userFuture = Future.value(updatedUser);
       });
 
-      AppSnackBar.success(
-        context,
-        'Profil został zaktualizowany',
-      );
+      AppSnackBar.success(context, 'Profil został zaktualizowany');
     } catch (e) {
       if (!mounted) return;
 
@@ -159,10 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
           nameController.text.trim().isNotEmpty
               ? nameController.text.trim()[0].toUpperCase()
               : '?',
-          style: const TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
         ),
       );
     }
@@ -178,9 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Center(
-          child: buildAvatarPreview(),
-        ),
+        Center(child: buildAvatarPreview()),
         const SizedBox(height: 24),
         TextField(
           controller: nameController,
@@ -262,19 +249,12 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 56,
-              color: Colors.red,
-            ),
+            const Icon(Icons.error_outline, size: 56, color: Colors.red),
             const SizedBox(height: 16),
             const Text(
               'Nie udało się pobrać profilu',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             FilledButton(
@@ -294,16 +274,12 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mój profil'),
-      ),
+      appBar: AppBar(title: const Text('Mój profil')),
       body: FutureBuilder<UserModel>(
         future: userFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -334,9 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     });
 
     try {
-      await googleCalendarService.connectGoogleCalendar(
-        returnPath: '/#/home',
-      );
+      await googleCalendarService.connectGoogleCalendar(returnPath: '/#/home');
 
       if (!mounted) return;
 
@@ -353,11 +327,11 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         fallback: 'Nie udało się połączyć Google Calendar',
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isGoogleCalendarLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isGoogleCalendarLoading = false;
+        });
+      }
     }
   }
 
@@ -385,10 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
 
       if (!mounted) return;
 
-      AppSnackBar.success(
-        context,
-        'Google Calendar został odłączony',
-      );
+      AppSnackBar.success(context, 'Google Calendar został odłączony');
 
       await refreshGoogleCalendarStatus();
     } catch (e) {
@@ -400,11 +371,11 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
         fallback: 'Nie udało się odłączyć Google Calendar',
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        isGoogleCalendarLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isGoogleCalendarLoading = false;
+        });
+      }
     }
   }
 
@@ -450,8 +421,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   isLoading
                       ? 'Sprawdzanie połączenia...'
                       : isConnected
-                          ? 'Google Calendar jest połączony z Twoim kontem.'
-                          : 'Google Calendar nie jest jeszcze połączony.',
+                      ? 'Google Calendar jest połączony z Twoim kontem.'
+                      : 'Google Calendar nie jest jeszcze połączony.',
                   style: TextStyle(
                     color: isConnected
                         ? Colors.green.shade700

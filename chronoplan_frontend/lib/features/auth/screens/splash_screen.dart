@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -33,22 +34,48 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'ChronoPlan',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 82,
+                height: 82,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.event_available,
+                  color: Colors.white,
+                  size: 42,
+                ),
               ),
-            ),
-            SizedBox(height: 24),
-            CircularProgressIndicator(),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                'ChronoPlan',
+                style: textTheme.headlineMedium?.copyWith(
+                  color: AppTheme.primaryDark,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Przygotowujemy Twój plan',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.mutedText,
+                ),
+              ),
+              const SizedBox(height: 28),
+              const CircularProgressIndicator(),
+            ],
+          ),
         ),
       ),
     );
