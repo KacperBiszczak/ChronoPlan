@@ -34,6 +34,8 @@ class _EditEventScreenState extends State<EditEventScreen> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
 
+  String selectedBudgetMode = 'SHARED';
+
   bool isLoading = true;
   bool isSaving = false;
 
@@ -69,6 +71,8 @@ class _EditEventScreenState extends State<EditEventScreen> {
 
       selectedDate = event.date;
       selectedTime = TimeOfDay.fromDateTime(event.date);
+
+      selectedBudgetMode = event.budgetMode;
 
       if (!mounted) return;
 
@@ -233,6 +237,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
         title: title,
         description: description.isEmpty ? null : description,
         date: selectedDateTime,
+        budgetMode: selectedBudgetMode,
         locationName: emptyToNull(locationNameController.text),
         locationAddress: emptyToNull(locationAddressController.text),
         latitude: latitude,
@@ -379,6 +384,45 @@ class _EditEventScreenState extends State<EditEventScreen> {
               onTap: pickTime,
             ),
           ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: selectedBudgetMode,
+            decoration: const InputDecoration(
+              labelText: 'Tryb budżetu',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'SHARED',
+                child: Text('Wspólny'),
+              ),
+              DropdownMenuItem(
+                value: 'PRIVATE',
+                child: Text('Prywatny'),
+              ),
+              DropdownMenuItem(
+                value: 'MIXED',
+                child: Text('Mieszany'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+
+              setState(() {
+                selectedBudgetMode = value;
+              });
+            },
+          ),
+
+          const SizedBox(height: 8),
+          Text(
+            getBudgetModeDescription(selectedBudgetMode),
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 13,
+            ),
+          ),
+
           const SizedBox(height: 24),
           FilledButton(
             onPressed: isSaving ? null : updateEvent,
@@ -393,5 +437,17 @@ class _EditEventScreenState extends State<EditEventScreen> {
         ],
       ),
     );
+  }
+  
+  String getBudgetModeDescription(String mode) {
+    switch (mode) {
+      case 'PRIVATE':
+        return 'Koszty widzi tylko organizator. Dobre np. dla wesela.';
+      case 'MIXED':
+        return 'Część kosztów może być prywatna, a część wspólna.';
+      case 'SHARED':
+      default:
+        return 'Uczestnicy widzą koszty i można ich rozliczać.';
+    }
   }
 }

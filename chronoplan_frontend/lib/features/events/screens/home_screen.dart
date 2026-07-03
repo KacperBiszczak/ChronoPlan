@@ -283,6 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (event.locationName != null && event.locationName!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
                                 Icons.location_on_outlined,
@@ -290,7 +291,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.grey,
                               ),
                               const SizedBox(width: 4),
-                              Expanded(
+                              Flexible(
+                                fit: FlexFit.loose,
                                 child: Text(
                                   event.locationName!,
                                   maxLines: 1,

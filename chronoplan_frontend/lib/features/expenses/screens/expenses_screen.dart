@@ -135,9 +135,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     
     final titleController = TextEditingController();
     final amountController = TextEditingController();
+    final categoryController = TextEditingController();
 
     int? selectedPaidById;
     bool isLoading = false;
+
+    String selectedVisibility = 'PARTICIPANTS';
+    String selectedSettlementType = 'SPLIT_EQUALLY';
 
     final created = await showDialog<bool>(
       context: context,
@@ -175,6 +179,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   amount: amount,
                   eventId: widget.eventId,
                   paidById: selectedPaidById,
+                  category: categoryController.text.trim().isEmpty
+                      ? null
+                      : categoryController.text.trim(),
+                  visibility: selectedVisibility,
+                  settlementType: selectedSettlementType,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -219,6 +228,93 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         suffixText: 'zł',
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: categoryController,
+                      decoration: const InputDecoration(
+                        labelText: 'Kategoria',
+                        hintText: 'Np. Transport, Jedzenie, Nocleg',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedVisibility,
+                      decoration: const InputDecoration(
+                        labelText: 'Widoczność wydatku',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.visibility_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'PARTICIPANTS',
+                          child: Text('Widoczne dla uczestników'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ORGANIZER_ONLY',
+                          child: Text('Tylko organizator'),
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+
+                              setDialogState(() {
+                                selectedVisibility = value;
+
+                                if (selectedVisibility == 'ORGANIZER_ONLY') {
+                                  selectedSettlementType = 'NONE';
+                                }
+                              });
+                            },
+                    ),
+
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedSettlementType,
+                      decoration: const InputDecoration(
+                        labelText: 'Rozliczanie',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.call_split_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'NONE',
+                          child: Text('Bez rozliczania'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'SPLIT_EQUALLY',
+                          enabled: selectedVisibility == 'PARTICIPANTS',
+                          child: Text(
+                            'Podziel po równo',
+                            style: TextStyle(
+                              color: selectedVisibility == 'PARTICIPANTS'
+                                  ? null
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+
+                              if (
+                                selectedVisibility == 'ORGANIZER_ONLY' &&
+                                value == 'SPLIT_EQUALLY'
+                              ) {
+                                return;
+                              }
+
+                              setDialogState(() {
+                                selectedSettlementType = value;
+                              });
+                            },
+                    ),
+
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int?>(
                       initialValue: selectedPaidById,
@@ -282,6 +378,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     titleController.dispose();
     amountController.dispose();
+    categoryController.dispose();
 
     if (!mounted) return;
 
@@ -306,9 +403,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final amountController = TextEditingController(
       text: expense.amount.toStringAsFixed(2),
     );
+    final categoryController = TextEditingController(
+      text: expense.category ?? '',
+    );
 
     int? selectedPaidById = expense.paidById;
     bool isLoading = false;
+
+    String selectedVisibility = expense.visibility;
+    String selectedSettlementType = expense.settlementType;
 
     final updated = await showDialog<bool>(
       context: context,
@@ -346,6 +449,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   title: title,
                   amount: amount,
                   paidById: selectedPaidById,
+                  category: categoryController.text.trim().isEmpty
+                      ? null
+                      : categoryController.text.trim(),
+                  visibility: selectedVisibility,
+                  settlementType: selectedSettlementType,
                 );
 
                 if (!dialogContext.mounted) return;
@@ -390,6 +498,94 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         suffixText: 'zł',
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: categoryController,
+                      decoration: const InputDecoration(
+                        labelText: 'Kategoria',
+                        hintText: 'Np. Transport, Jedzenie, Nocleg',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedVisibility,
+                      decoration: const InputDecoration(
+                        labelText: 'Widoczność wydatku',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.visibility_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'PARTICIPANTS',
+                          child: Text('Widoczne dla uczestników'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ORGANIZER_ONLY',
+                          child: Text('Tylko organizator'),
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+
+                              setDialogState(() {
+                                selectedVisibility = value;
+
+                                if (selectedVisibility == 'ORGANIZER_ONLY') {
+                                  selectedSettlementType = 'NONE';
+                                }
+                              });
+                            },
+                    ),
+
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedSettlementType,
+                      decoration: const InputDecoration(
+                        labelText: 'Rozliczanie',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.call_split_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'NONE',
+                          child: Text('Bez rozliczania'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'SPLIT_EQUALLY',
+                          enabled: selectedVisibility == 'PARTICIPANTS',
+                          child: Text(
+                            'Podziel po równo',
+                            style: TextStyle(
+                              color: selectedVisibility == 'PARTICIPANTS'
+                                  ? null
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+
+                              if (
+                                selectedVisibility == 'ORGANIZER_ONLY' &&
+                                value == 'SPLIT_EQUALLY'
+                              ) {
+                                return;
+                              }
+
+                              setDialogState(() {
+                                selectedSettlementType = value;
+                              });
+                            },
+                    ),
+
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int?>(
                       initialValue: selectedPaidById,
@@ -453,6 +649,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
     titleController.dispose();
     amountController.dispose();
+    categoryController.dispose();
 
     if (!mounted) return;
 
@@ -853,8 +1050,50 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              buildOptionalExpenseUserAvatar(expense.paidBy),
-              const SizedBox(width: 8),
+              Text(AppFormatters.amount(expense.amount)),
+
+              if (expense.category != null && expense.category!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Chip(
+                  avatar: const Icon(
+                    Icons.category_outlined,
+                    size: 16,
+                  ),
+                  label: Text(expense.category!),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+
+              const SizedBox(height: 6),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Chip(
+                    avatar: Icon(
+                      expense.visibility == 'ORGANIZER_ONLY'
+                          ? Icons.lock_outline
+                          : Icons.group_outlined,
+                      size: 16,
+                    ),
+                    label: Text(getExpenseVisibilityLabel(expense.visibility)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Chip(
+                    avatar: Icon(
+                      expense.settlementType == 'SPLIT_EQUALLY'
+                          ? Icons.call_split_outlined
+                          : Icons.money_off_outlined,
+                      size: 16,
+                    ),
+                    label: Text(getExpenseSettlementTypeLabel(expense.settlementType)),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
               Expanded(
                 child: Text(
                   expense.paidBy != null
@@ -970,14 +1209,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ): null,
       body: RefreshIndicator(
         onRefresh: refreshExpenses,
-        child: FutureBuilder<List<ExpenseModel>>(
-          future: expensesFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+        child: FutureBuilder<ExpenseSummaryModel>(
+          future: summaryFuture,
+          builder: (context, summarySnapshot) {
+            if (summarySnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
             }
 
-            if (snapshot.hasError) {
+            if (summarySnapshot.hasError || summarySnapshot.data == null) {
               return ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
@@ -989,13 +1230,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Nie udało się pobrać wydatków',
+                    'Nie udało się pobrać podsumowania budżetu',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    snapshot.error.toString(),
+                    summarySnapshot.error.toString(),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -1007,72 +1248,246 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               );
             }
 
-            final expenses = snapshot.data ?? [];
-            final filteredExpenses = filterAndSortExpenses(expenses);
+            final summary = summarySnapshot.data!;
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                buildSummaryCard(),
-                const SizedBox(height: 16),
-
-                if (expenses.isNotEmpty) ...[
-                  buildSearchField(),
-                  const SizedBox(height: 16),
-                  buildSortSelector(),
-                  const SizedBox(height: 16),
+            if (summary.hidden) {
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  buildHiddenBudgetInfo(),
                 ],
+              );
+            }
 
-                if (expenses.isEmpty) ...[
-                  const SizedBox(height: 80),
-                  const Icon(
-                    Icons.payments,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Brak wydatków',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Dodaj pierwszy wydatek do tego wydarzenia.',
-                    textAlign: TextAlign.center,
-                  ),
-                ] else if (filteredExpenses.isEmpty) ...[
-                  const SizedBox(height: 80),
-                  const Icon(
-                    Icons.search_off,
-                    size: 56,
-                    color: Colors.blue,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Brak wyników',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Nie znaleziono wydatków pasujących do wyszukiwania.',
-                    textAlign: TextAlign.center,
-                  ),
-                ] else ...[
-                  ...filteredExpenses.map(buildExpenseCard),
-                ],
-              ],
+            return FutureBuilder<List<ExpenseModel>>(
+              future: expensesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return ListView(
+                    padding: const EdgeInsets.all(24),
+                    children: [
+                      const SizedBox(height: 80),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 56,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nie udało się pobrać wydatków',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        snapshot.error.toString(),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: refreshExpenses,
+                        child: const Text('Spróbuj ponownie'),
+                      ),
+                    ],
+                  );
+                }
+
+                final expenses = snapshot.data ?? [];
+                final filteredExpenses = filterAndSortExpenses(expenses);
+
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    buildBudgetModeInfo(summary),
+                    const SizedBox(height: 12),
+
+                    buildSummaryCard(),
+                    const SizedBox(height: 16),
+
+                    if (expenses.isNotEmpty) ...[
+                      buildSearchField(),
+                      const SizedBox(height: 16),
+                      buildSortSelector(),
+                      const SizedBox(height: 16),
+                    ],
+
+                    if (expenses.isEmpty) ...[
+                      const SizedBox(height: 80),
+                      const Icon(
+                        Icons.payments,
+                        size: 56,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Brak wydatków',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Dodaj pierwszy wydatek do tego wydarzenia.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else if (filteredExpenses.isEmpty) ...[
+                      const SizedBox(height: 80),
+                      const Icon(
+                        Icons.search_off,
+                        size: 56,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Brak wyników',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Nie znaleziono wydatków pasujących do wyszukiwania.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ] else ...[
+                      ...filteredExpenses.map(buildExpenseCard),
+                    ],
+                  ],
+                );
+              },
             );
           },
         ),
       ),
     );
+  }
+
+  Widget buildBudgetModeInfo(ExpenseSummaryModel summary) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              color: Colors.blue.shade700,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    getBudgetModeTitle(summary.budgetMode),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    getBudgetModeDescription(summary.budgetMode),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildHiddenBudgetInfo() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              color: Colors.orange.shade800,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Budżet prywatny',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Koszty tego wydarzenia są widoczne tylko dla organizatora.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String getBudgetModeTitle(String mode) {
+    switch (mode) {
+      case 'PRIVATE':
+        return 'Budżet prywatny';
+      case 'MIXED':
+        return 'Budżet mieszany';
+      case 'SHARED':
+      default:
+        return 'Budżet wspólny';
+    }
+  }
+
+  String getBudgetModeDescription(String mode) {
+    switch (mode) {
+      case 'PRIVATE':
+        return 'Koszty tego wydarzenia są widoczne tylko dla organizatora.';
+      case 'MIXED':
+        return 'Część kosztów może być prywatna, a część wspólna dla uczestników.';
+      case 'SHARED':
+      default:
+        return 'Koszty są widoczne dla uczestników i mogą być rozliczane po równo.';
+    }
+  }
+
+  String getExpenseVisibilityLabel(String visibility) {
+    switch (visibility) {
+      case 'ORGANIZER_ONLY':
+        return 'Tylko organizator';
+      case 'PARTICIPANTS':
+      default:
+        return 'Widoczne dla uczestników';
+    }
+  }
+
+  String getExpenseSettlementTypeLabel(String settlementType) {
+    switch (settlementType) {
+      case 'NONE':
+        return 'Bez rozliczania';
+      case 'SPLIT_EQUALLY':
+      default:
+        return 'Podziel po równo';
+    }
   }
 }
