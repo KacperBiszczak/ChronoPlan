@@ -37,6 +37,13 @@ type GeneratedSettlement = {
   amount: number;
 };
 
+type BudgetBalance = {
+  user: BudgetUser;
+  paid: number;
+  share: number;
+  balance: number;
+};
+
 const roundMoney = (amount: number) => {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
@@ -84,15 +91,14 @@ export const buildBudgetSummaryForEvent = async (
     };
   }
 
-  const expenseWhere =
-    isOrganizer || event.budgetMode === "SHARED"
-      ? {
-          eventId: event.id,
-        }
-      : {
-          eventId: event.id,
-          visibility: "PARTICIPANTS" as const,
-        };
+  const expenseWhere = isOrganizer
+    ? {
+        eventId: event.id,
+      }
+    : {
+        eventId: event.id,
+        visibility: "PARTICIPANTS" as const,
+      };
 
   const expenses = await prisma.expense.findMany({
     where: expenseWhere,
@@ -190,7 +196,7 @@ export const buildBudgetSummaryForEvent = async (
     settledExpensesTotal / settlementUsers.length,
   );
 
-  const balances = settlementUsers.map((settlementUser) => {
+  const balancesBeforeConfirmedSettlements = settlementUsers.map((settlementUser) => {
     const paid = roundMoney(
       settledExpenses
         .filter((expense) => expense.paidById === settlementUser.id)
@@ -208,6 +214,11 @@ export const buildBudgetSummaryForEvent = async (
       balance,
     };
   });
+
+  const balances = await applyConfirmedSettlementsToBalances(
+    event.id,
+    balancesBeforeConfirmedSettlements,
+  );
 
   const generatedSettlements = generateSettlementsFromBalances(balances);
   const settlements = await syncSettlementsForEvent(
@@ -239,6 +250,41 @@ export const buildBudgetSummaryForEvent = async (
   };
 };
 
+const applyConfirmedSettlementsToBalances = async (
+  eventId: number,
+  balances: BudgetBalance[],
+) => {
+  const adjustedBalances = balances.map((balance) => ({ ...balance }));
+  const balancesByUserId = new Map(
+    adjustedBalances.map((balance) => [balance.user.id, balance]),
+  );
+
+  const confirmedSettlements = await prisma.settlement.findMany({
+    where: {
+      eventId,
+      status: "CONFIRMED",
+    },
+  });
+
+  for (const settlement of confirmedSettlements) {
+    const fromBalance = balancesByUserId.get(settlement.fromUserId);
+    const toBalance = balancesByUserId.get(settlement.toUserId);
+
+    if (!fromBalance || !toBalance) {
+      continue;
+    }
+
+    const amount = roundMoney(settlement.amount);
+
+    fromBalance.paid = roundMoney(fromBalance.paid + amount);
+    fromBalance.balance = roundMoney(fromBalance.balance + amount);
+    toBalance.paid = roundMoney(toBalance.paid - amount);
+    toBalance.balance = roundMoney(toBalance.balance - amount);
+  }
+
+  return adjustedBalances;
+};
+
 export const syncSettlementsForEvent = async (
   eventId: number,
   generatedSettlements: GeneratedSettlement[],
@@ -250,26 +296,28 @@ export const syncSettlementsForEvent = async (
     include: settlementInclude,
   });
 
-  const activeKeys = new Set<string>();
+  const activeSettlementIds = new Set<number>();
 
   for (const generatedSettlement of generatedSettlements) {
     const amount = roundMoney(generatedSettlement.amount);
-    const key = settlementKey(
-      generatedSettlement.from.id,
-      generatedSettlement.to.id,
-    );
-
-    activeKeys.add(key);
 
     const existingSettlement = existingSettlements.find((settlement) => {
       return (
         settlement.fromUserId === generatedSettlement.from.id &&
-        settlement.toUserId === generatedSettlement.to.id
+        settlement.toUserId === generatedSettlement.to.id &&
+        settlement.status !== "CONFIRMED" &&
+        settlement.status !== "CANCELLED"
+      );
+    }) ?? existingSettlements.find((settlement) => {
+      return (
+        settlement.fromUserId === generatedSettlement.from.id &&
+        settlement.toUserId === generatedSettlement.to.id &&
+        settlement.status === "CANCELLED"
       );
     });
 
     if (!existingSettlement) {
-      await prisma.settlement.create({
+      const createdSettlement = await prisma.settlement.create({
         data: {
           eventId,
           fromUserId: generatedSettlement.from.id,
@@ -277,8 +325,12 @@ export const syncSettlementsForEvent = async (
           amount,
         },
       });
+
+      activeSettlementIds.add(createdSettlement.id);
       continue;
     }
+
+    activeSettlementIds.add(existingSettlement.id);
 
     const amountChanged = Math.abs(existingSettlement.amount - amount) > 0.01;
     const shouldResetStatus =
@@ -304,13 +356,8 @@ export const syncSettlementsForEvent = async (
   }
 
   for (const existingSettlement of existingSettlements) {
-    const key = settlementKey(
-      existingSettlement.fromUserId,
-      existingSettlement.toUserId,
-    );
-
     if (
-      activeKeys.has(key) ||
+      activeSettlementIds.has(existingSettlement.id) ||
       existingSettlement.status === "CONFIRMED" ||
       existingSettlement.status === "CANCELLED"
     ) {
@@ -323,6 +370,8 @@ export const syncSettlementsForEvent = async (
       },
       data: {
         status: "CANCELLED",
+        paidAt: null,
+        confirmedAt: null,
       },
     });
   }
@@ -341,10 +390,7 @@ export const syncSettlementsForEvent = async (
 };
 
 const generateSettlementsFromBalances = (
-  balances: {
-    user: BudgetUser;
-    balance: number;
-  }[],
+  balances: Pick<BudgetBalance, "user" | "balance">[],
 ): GeneratedSettlement[] => {
   const creditors = balances
     .filter((item) => item.balance > 0.01)
@@ -396,8 +442,4 @@ const generateSettlementsFromBalances = (
   }
 
   return settlements;
-};
-
-const settlementKey = (fromUserId: number, toUserId: number) => {
-  return `${fromUserId}:${toUserId}`;
 };

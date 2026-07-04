@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const profileColorOptions = [
+  "#2563EB",
+  "#1E3A8A",
+  "#16A34A",
+  "#7C3AED",
+  "#F97316",
+  "#DC2626",
+  "#64748B",
+] as const;
+
 export const registerUserSchema = z.object({
   name: z
     .string()
@@ -30,6 +40,18 @@ export const updateProfileSchema = z.object({
   avatarUrl: z
     .string()
     .url("Nieprawidłowy adres URL avatara")
+    .optional()
+    .nullable(),
+
+  profileColor: z
+    .string()
+    .refine(
+      (value) =>
+        profileColorOptions.includes(
+          value as (typeof profileColorOptions)[number],
+        ),
+      "Nieprawidlowy kolor profilu",
+    )
     .optional()
     .nullable(),
 

@@ -35,6 +35,7 @@ router.get("/", authMiddleware, async (req, res) => {
       id: true,
       name: true,
       email: true,
+      avatarUrl: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -94,6 +95,7 @@ router.post("/", validateBody(registerUserSchema), async (req, res) => {
         id: true,
         name: true,
         email: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });

@@ -1,5 +1,9 @@
-import { Router } from "express";
+import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
+import { Router, type Request, type Response } from "express";
 import bcrypt from "bcrypt";
+import multer from "multer";
 import { prisma } from "../lib/prisma";
 import jwt from "jsonwebtoken";
 import { validateBody } from "../middlewares/validate.middleware";
@@ -9,6 +13,211 @@ import { updateProfileSchema } from "../validators/user.validator";
 
 
 const router = Router();
+const avatarUploadDir = path.join(process.cwd(), "uploads", "avatars");
+const maxAvatarSizeInBytes = 3 * 1024 * 1024;
+const avatarMimeExtensions: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
+const userProfileSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+  profileColor: true,
+  phone: true,
+  bio: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+const userProfileBaseSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+  phone: true,
+  bio: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+fs.mkdirSync(avatarUploadDir, { recursive: true });
+
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, callback) => {
+      callback(null, avatarUploadDir);
+    },
+    filename: (req, file, callback) => {
+      const userId = Number((req as any).user?.userId) || "user";
+      const extension =
+        avatarMimeExtensions[file.mimetype] ||
+        path.extname(file.originalname).toLowerCase();
+
+      callback(null, `${userId}-${Date.now()}-${randomUUID()}${extension}`);
+    },
+  }),
+  limits: {
+    fileSize: maxAvatarSizeInBytes,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!avatarMimeExtensions[file.mimetype]) {
+      callback(new Error("INVALID_AVATAR_TYPE"));
+      return;
+    }
+
+    callback(null, true);
+  },
+});
+
+function runAvatarUpload(req: Request, res: Response) {
+  return new Promise<void>((resolve, reject) => {
+    avatarUpload.single("avatar")(req, res, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function getPublicAvatarUrl(req: Request, filename: string) {
+  const host = req.get("host") || `localhost:${process.env.PORT || 5000}`;
+
+  return `${req.protocol}://${host}/uploads/avatars/${filename}`;
+}
+
+function getStoredAvatarFileName(avatarUrl?: string | null) {
+  if (!avatarUrl) {
+    return null;
+  }
+
+  let pathname = avatarUrl;
+
+  try {
+    pathname = new URL(avatarUrl).pathname;
+  } catch {
+    // Local public paths are accepted as-is.
+  }
+
+  if (!pathname.startsWith("/uploads/avatars/")) {
+    return null;
+  }
+
+  return path.basename(pathname);
+}
+
+async function deleteStoredAvatar(avatarUrl?: string | null) {
+  const fileName = getStoredAvatarFileName(avatarUrl);
+
+  if (!fileName || fileName === "." || fileName === "..") {
+    return;
+  }
+
+  const resolvedUploadDir = path.resolve(avatarUploadDir);
+  const filePath = path.resolve(resolvedUploadDir, fileName);
+
+  if (!filePath.startsWith(`${resolvedUploadDir}${path.sep}`)) {
+    return;
+  }
+
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn("Nie udało się usunąć avatara", error);
+    }
+  }
+}
+
+function getAvatarUploadErrorMessage(error: unknown) {
+  if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+    return "Avatar może mieć maksymalnie 3 MB";
+  }
+
+  if (error instanceof Error && error.message === "INVALID_AVATAR_TYPE") {
+    return "Avatar musi być obrazem JPG, PNG albo WebP";
+  }
+
+  return "Nie udało się przesłać avatara";
+}
+
+function isMissingProfileColorColumn(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "P2022" &&
+    String((error as { message?: string }).message || "").includes(
+      "profileColor",
+    )
+  );
+}
+
+async function findUserProfileById(userId: number) {
+  try {
+    return await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: userProfileSelect,
+    });
+  } catch (error) {
+    if (!isMissingProfileColorColumn(error)) {
+      throw error;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: userProfileBaseSelect,
+    });
+
+    return user ? { ...user, profileColor: null } : null;
+  }
+}
+
+async function updateUserProfileById(
+  userId: number,
+  data: {
+    name?: string;
+    email?: string;
+    avatarUrl?: string | null;
+    profileColor?: string | null;
+    phone?: string | null;
+    bio?: string | null;
+  },
+) {
+  try {
+    return await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data,
+      select: userProfileSelect,
+    });
+  } catch (error) {
+    if (!isMissingProfileColorColumn(error)) {
+      throw error;
+    }
+
+    const { profileColor: _profileColor, ...baseData } = data;
+    const user = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: baseData,
+      select: userProfileBaseSelect,
+    });
+
+    return { ...user, profileColor: null };
+  }
+}
 
 /**
  * @swagger
@@ -39,6 +248,13 @@ router.post("/login", validateBody(loginSchema), async (req, res) => {
 
     const user = await prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          password: true,
+          avatarUrl: true,
+        },
     });
 
     if (!user) {
@@ -66,6 +282,8 @@ router.post("/login", validateBody(loginSchema), async (req, res) => {
       }
     );
 
+    const profile = await findUserProfileById(user.id);
+
     res.json({
         message: "Zalogowano poprawnie",
         token,
@@ -73,6 +291,8 @@ router.post("/login", validateBody(loginSchema), async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        avatarUrl: user.avatarUrl,
+        profileColor: profile?.profileColor ?? null,
         },
     });
 });
@@ -113,21 +333,7 @@ router.get("/me", authMiddleware, async (req, res) => {
       return;
     }
 
-    const loggedUser = await prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-        phone: true,
-        bio: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const loggedUser = await findUserProfileById(userId);
 
     if (!loggedUser) {
       res.status(404).json({
@@ -170,7 +376,7 @@ router.patch(
         return;
       }
 
-      const { name, email, avatarUrl, phone, bio } = req.body;
+      const { name, email, avatarUrl, profileColor, phone, bio } = req.body;
 
       if (email) {
         const existingUser = await prisma.user.findFirst({
@@ -190,28 +396,27 @@ router.patch(
         }
       }
 
-      const updatedUser = await prisma.user.update({
+      const currentUser = await prisma.user.findUnique({
         where: {
           id: userId,
         },
-        data: {
-          name,
-          email,
-          avatarUrl,
-          phone,
-          bio,
-        },
         select: {
-          id: true,
-          name: true,
-          email: true,
           avatarUrl: true,
-          phone: true,
-          bio: true,
-          createdAt: true,
-          updatedAt: true,
         },
       });
+
+      const updatedUser = await updateUserProfileById(userId, {
+        name,
+        email,
+        avatarUrl,
+        profileColor,
+        phone,
+        bio,
+      });
+
+      if (avatarUrl !== undefined && avatarUrl !== currentUser?.avatarUrl) {
+        await deleteStoredAvatar(currentUser?.avatarUrl);
+      }
 
       res.json(updatedUser);
     } catch {
@@ -221,5 +426,109 @@ router.patch(
     }
   }
 );
+
+router.post("/me/avatar", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Nieprawidłowy token",
+      });
+      return;
+    }
+
+    await runAvatarUpload(req, res);
+
+    const file = (req as Request & { file?: Express.Multer.File }).file;
+
+    if (!file) {
+      res.status(400).json({
+        message: "Nie wybrano pliku avatara",
+      });
+      return;
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        avatarUrl: true,
+      },
+    });
+
+    if (!currentUser) {
+      await fs.promises.unlink(file.path).catch(() => undefined);
+      res.status(404).json({
+        message: "Nie znaleziono użytkownika",
+      });
+      return;
+    }
+
+    const avatarUrl = getPublicAvatarUrl(req, file.filename);
+
+    const updatedUser = await updateUserProfileById(userId, {
+      avatarUrl,
+    });
+
+    await deleteStoredAvatar(currentUser.avatarUrl);
+
+    res.json(updatedUser);
+  } catch (error) {
+    const file = (req as Request & { file?: Express.Multer.File }).file;
+
+    if (file) {
+      await fs.promises.unlink(file.path).catch(() => undefined);
+    }
+
+    res.status(400).json({
+      message: getAvatarUploadErrorMessage(error),
+    });
+  }
+});
+
+router.delete("/me/avatar", authMiddleware, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userId = Number(user?.userId);
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Nieprawidłowy token",
+      });
+      return;
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        avatarUrl: true,
+      },
+    });
+
+    if (!currentUser) {
+      res.status(404).json({
+        message: "Nie znaleziono użytkownika",
+      });
+      return;
+    }
+
+    const updatedUser = await updateUserProfileById(userId, {
+      avatarUrl: null,
+    });
+
+    await deleteStoredAvatar(currentUser.avatarUrl);
+
+    res.json(updatedUser);
+  } catch {
+    res.status(500).json({
+      message: "Nie udało się usunąć avatara",
+    });
+  }
+});
 
 export default router;

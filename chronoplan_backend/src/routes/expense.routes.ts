@@ -250,15 +250,14 @@ router.get("/event/:eventId", authMiddleware, async (req, res) => {
     return;
   }
 
-  const expenseWhere =
-    isOrganizer || event.budgetMode === "SHARED"
-      ? {
-          eventId,
-        }
-      : {
-          eventId,
-          visibility: "PARTICIPANTS" as const,
-        };
+  const expenseWhere = isOrganizer
+    ? {
+        eventId,
+      }
+    : {
+        eventId,
+        visibility: "PARTICIPANTS" as const,
+      };
 
   const expenses = await prisma.expense.findMany({
     where: expenseWhere,

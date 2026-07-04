@@ -12,9 +12,10 @@ model User {
   email    String @unique
   password String
 
-  avatarUrl String?
-  phone     String?
-  bio       String?
+  avatarUrl    String?
+  profileColor String?
+  phone        String?
+  bio          String?
 
   events Event[]
   tasks  Task[]
@@ -122,8 +123,8 @@ model Settlement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([eventId, fromUserId, toUserId])
   @@index([eventId])
+  @@index([eventId, fromUserId, toUserId])
   @@index([fromUserId])
   @@index([toUserId])
 }

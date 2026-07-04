@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snack_bar.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -16,7 +18,19 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with WidgetsBindingObserver {
+  static const defaultProfileColor = '#2563EB';
+  static const profileColorOptions = [
+    '#2563EB',
+    '#1E3A8A',
+    '#16A34A',
+    '#7C3AED',
+    '#F97316',
+    '#DC2626',
+    '#64748B',
+  ];
+
   final authService = AuthService();
+  final imagePicker = ImagePicker();
 
   final nameController = TextEditingController();
   final emailController = TextEditingController();
@@ -33,6 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   late Future<UserModel> userFuture;
 
   bool isSaving = false;
+  bool isAvatarSaving = false;
+  String selectedProfileColor = defaultProfileColor;
 
   @override
   void initState() {
@@ -74,6 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     avatarUrlController.text = user.avatarUrl ?? '';
     phoneController.text = user.phone ?? '';
     bioController.text = user.bio ?? '';
+    selectedProfileColor = user.profileColor ?? defaultProfileColor;
 
     return user;
   }
@@ -111,6 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         name: name,
         email: email,
         avatarUrl: emptyToNull(avatarUrlController.text),
+        profileColor: selectedProfileColor,
         phone: emptyToNull(phoneController.text),
         bio: emptyToNull(bioController.text),
       );
@@ -118,6 +136,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (!mounted) return;
 
       setState(() {
+        selectedProfileColor = updatedUser.profileColor ?? selectedProfileColor;
+        avatarUrlController.text = updatedUser.avatarUrl ?? '';
         userFuture = Future.value(updatedUser);
       });
 
@@ -139,27 +159,358 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Widget buildAvatarPreview() {
+  String? resolvedAvatarUrl() {
     final avatarUrl = avatarUrlController.text.trim();
 
     if (avatarUrl.isEmpty) {
-      return CircleAvatar(
-        radius: 48,
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        child: Text(
-          nameController.text.trim().isNotEmpty
-              ? nameController.text.trim()[0].toUpperCase()
-              : '?',
-          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-        ),
-      );
+      return null;
     }
 
-    return CircleAvatar(
-      radius: 48,
-      backgroundColor: Colors.blue.shade100,
-      backgroundImage: NetworkImage(avatarUrl),
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      return avatarUrl;
+    }
+
+    if (avatarUrl.startsWith('/')) {
+      return '${ApiConstants.baseUrl}$avatarUrl';
+    }
+
+    return avatarUrl;
+  }
+
+  Color colorFromHex(String? value) {
+    final normalized = (value ?? defaultProfileColor).replaceFirst('#', '');
+
+    if (normalized.length != 6) {
+      return Theme.of(context).colorScheme.primary;
+    }
+
+    try {
+      return Color(int.parse('FF$normalized', radix: 16));
+    } catch (_) {
+      return Theme.of(context).colorScheme.primary;
+    }
+  }
+
+  String initialsForName(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) {
+      return '?';
+    }
+
+    return parts.take(2).map((part) => part[0].toUpperCase()).join();
+  }
+
+  void applyUpdatedUser(UserModel user, {bool syncTextFields = false}) {
+    selectedProfileColor = user.profileColor ?? selectedProfileColor;
+    avatarUrlController.text = user.avatarUrl ?? '';
+
+    if (syncTextFields) {
+      nameController.text = user.name;
+      emailController.text = user.email;
+      phoneController.text = user.phone ?? '';
+      bioController.text = user.bio ?? '';
+    }
+
+    userFuture = Future.value(user);
+  }
+
+  Future<void> showAvatarOptions() async {
+    if (isAvatarSaving) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final hasAvatar = avatarUrlController.text.trim().isNotEmpty;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: const Text('Zmień zdjęcie'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    pickAvatarImage();
+                  },
+                ),
+                if (hasAvatar)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Usuń zdjęcie'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      deleteAvatar();
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: const Text('Zmień kolor profilu'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    showColorPickerSheet();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> pickAvatarImage() async {
+    final pickedImage = await imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+
+    if (pickedImage == null) {
+      return;
+    }
+
+    setState(() {
+      isAvatarSaving = true;
+    });
+
+    try {
+      final updatedUser = await authService.uploadAvatar(
+        bytes: await pickedImage.readAsBytes(),
+        fileName: pickedImage.name,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        applyUpdatedUser(updatedUser);
+      });
+
+      AppSnackBar.success(context, 'Avatar został zaktualizowany');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(context, e, fallback: 'Nie udało się przesłać avatara');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isAvatarSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> deleteAvatar() async {
+    setState(() {
+      isAvatarSaving = true;
+    });
+
+    try {
+      final updatedUser = await authService.deleteAvatar();
+
+      if (!mounted) return;
+
+      setState(() {
+        applyUpdatedUser(updatedUser);
+      });
+
+      AppSnackBar.success(context, 'Avatar został usunięty');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(context, e, fallback: 'Nie udało się usunąć avatara');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isAvatarSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> showColorPickerSheet() async {
+    final selectedColor = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kolor profilu',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: profileColorOptions.map((colorValue) {
+                    final color = colorFromHex(colorValue);
+                    final isSelected = selectedProfileColor == colorValue;
+
+                    return InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        Navigator.of(context).pop(colorValue);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Colors.white,
+                            width: isSelected ? 3 : 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.24),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check, color: Colors.white)
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedColor == null || selectedColor == selectedProfileColor) {
+      return;
+    }
+
+    await updateProfileColor(selectedColor);
+  }
+
+  Future<void> updateProfileColor(String profileColor) async {
+    setState(() {
+      isAvatarSaving = true;
+    });
+
+    try {
+      final updatedUser = await authService.updateProfileColor(profileColor);
+
+      if (!mounted) return;
+
+      setState(() {
+        applyUpdatedUser(updatedUser);
+      });
+
+      AppSnackBar.success(context, 'Kolor profilu został zapisany');
+    } catch (e) {
+      if (!mounted) return;
+
+      AppSnackBar.error(
+        context,
+        e,
+        fallback: 'Nie udało się zapisać koloru profilu',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isAvatarSaving = false;
+        });
+      }
+    }
+  }
+
+  Widget buildAvatarPreview() {
+    final avatarUrl = resolvedAvatarUrl();
+    final profileColor = colorFromHex(selectedProfileColor);
+    final initials = initialsForName(nameController.text);
+
+    return Semantics(
+      button: true,
+      label: 'Zmień avatar',
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: isAvatarSaving ? null : showAvatarOptions,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              radius: 62,
+              backgroundColor: profileColor,
+              foregroundColor: Colors.white,
+              backgroundImage: avatarUrl == null
+                  ? null
+                  : NetworkImage(avatarUrl),
+              child: avatarUrl == null
+                  ? Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                  : null,
+            ),
+            if (isAvatarSaving)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.surface,
+                    width: 3,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.photo_camera_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -226,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         const SizedBox(height: 24),
         FilledButton.icon(
-          onPressed: isSaving ? null : saveProfile,
+          onPressed: isSaving || isAvatarSaving ? null : saveProfile,
           icon: isSaving
               ? const SizedBox(
                   width: 18,
