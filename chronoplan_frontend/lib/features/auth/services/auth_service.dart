@@ -9,7 +9,7 @@ import '../models/user_model.dart';
 class AuthService {
   final _dio = ApiClient.dio;
   final _storage = const FlutterSecureStorage();
-  final String baseUrl = 'http://127.0.0.1:5000';
+  final String baseUrl = 'https://chronoplan-backend.onrender.com';
 
   Future<void> login({required String email, required String password}) async {
     final response = await _dio.post(
